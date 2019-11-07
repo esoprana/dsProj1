@@ -69,13 +69,13 @@ public class Node {
 	// For each el in retrieveBuf, check if we have waited enough (k rounds) before fetching data (from who told me about the event)
 	// Then if during waiting period the event notification was received in a subsequent gossip message. If not ask for event notification
 	
-	@NonNull List<@NonNull UUID> view = new ArrayList<@NonNull UUID>();//2*Options.VIEWS_SIZE);              // Individual view // TODO: Fix permission(package -> private)
-	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>();//2*Options.UN_SUBS_SIZE);          // Un-subscriptions
-	private @NonNull List<@NonNull UUID> subs = new ArrayList<@NonNull UUID>();//2*Options.SUBS_SIZE);               // Subscriptions
-	private @NonNull List<@NonNull UUID> eventIds	= new ArrayList<@NonNull UUID>();//2*Options.EVENT_IDS_SIZE);      // Events already handled
-	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>();//2*Options.RETRIEVE_SIZE);  // Events to be retrieved
+	@NonNull List<@NonNull UUID> view = new ArrayList<@NonNull UUID>(2*Options.VIEWS_SIZE);              					   // Individual view // TODO: Fix permission(package -> private)
+	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>(2*Options.UN_SUBS_SIZE);          			   // Un-subscriptions
+	private @NonNull List<@NonNull UUID> subs = new ArrayList<@NonNull UUID>(2*Options.SUBS_SIZE);               			   // Subscriptions
+	private @NonNull List<@NonNull UUID> eventIds	= new ArrayList<@NonNull UUID>(2*Options.EVENT_IDS_SIZE);      			   // Events already handled
+	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>(2*Options.RETRIEVE_SIZE);  // Events to be retrieved
 
-	private @NonNull List<@NonNull Event> events = new ArrayList<@NonNull Event>(); // [EVENTS_SIZE]
+	private @NonNull List<@NonNull Event> events = new ArrayList<@NonNull Event>(2*Options.EVENTS_SIZE);
 
 	
 	public @NonNull UUID id;

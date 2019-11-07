@@ -6,8 +6,10 @@ import org.eclipse.jdt.annotation.Nullable;
 
 // Standard libraries
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.UUID;
 
 // Repast libraries
@@ -26,18 +28,16 @@ import dsProj1.msg.data.Gossip;
 public class Oracle {
 	public double currentSeconds = 0;
 	
-	@NonNull List<@NonNull Timestamped<Message<?>>> messages = new ArrayList<@NonNull Timestamped<Message<?>>>(50);
+	@NonNull TreeSet<@NonNull Timestamped<Message<?>>> messages = new TreeSet<@NonNull Timestamped<Message<?>>>();
 	
 	public void send(@NonNull Message<?> msg) {
 		double delayTo = RandomHelper.createNormal(Options.MEAN_LATENCY, Options.VAR_LATENCY)
 				                     .nextDouble(Options.MEAN_LATENCY, Double.POSITIVE_INFINITY);
-		messages.add(new Timestamped<Message<?>>(currentSeconds+1/*delayTo*/, msg));
-		//messages.sort(Comparator.comparing((Timestamped t) -> t.timestamp));
+		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, msg));
 	}
 	
 	public void scheduleGossip(double in, @NonNull Message<DummyStartGossip> dg) {
 		messages.add(new Timestamped<Message<?>>(currentSeconds+in, dg));
-		//messages.sort(Comparator.comparing((Timestamped t) -> t.timestamp));
 	}
 	
 	public @Nullable Node getNode(@NonNull UUID id) {
@@ -46,7 +46,7 @@ public class Oracle {
 			Node n = (Node) o;
 			
 			if (n.id.equals(id))
-				return (Node)o;
+				return n;
 		}
 
 		return null;
@@ -54,43 +54,44 @@ public class Oracle {
 	
 	@ScheduledMethod(start = 1, interval = 1)
 	public void step() throws Exception {
+		@Nullable Timestamped<Message<?>> msg = messages.pollFirst();
+		
 		// If nothing is scheduled something bad happened (there should be at least some periodic event)
-		if (messages.isEmpty())
+		if(msg == null)
 			throw new Exception("No more messages/events!");
+		 
+		this.currentSeconds = msg.timestamp;
 		
-		Timestamped<Message<?>> gm = messages.remove(0);
-		this.currentSeconds = gm.timestamp;
-		
-		Node destination = this.getNode(gm.message.destination);		
+		Node destination = this.getNode(msg.message.destination);		
 		
 		// If there is no destination something bad happened (the node should never be removed from the context, use DEAD status instead)
 		if (destination == null) {
 			throw new Exception("Destination of message is null!");
 		}
 		
-		System.out.println(gm.message.getClass().getName().toUpperCase() + " --- of node " + destination.id + "(" + (destination.alive?"alive":"dead") + ")");
-		System.out.println(gm.message);
+		System.out.println(msg.message.getClass().getName().toUpperCase() + " --- of node " + destination.id + "(" + (destination.alive?"alive":"dead") + ")");
+		System.out.println(msg.message);
 
 		// If destination is dead, update the view and exit immediately (do not use any handle*)
 		if (!destination.alive) {
-			this.updateView();
+			this.updateView(destination, msg);
 			return;
 		}
 		
-		if (gm.message.data instanceof DummyStartGossip) {
+		if (msg.message.data instanceof DummyStartGossip) {
 			destination.emitGossip();
-		} else if (gm.message.data instanceof Gossip) {
-			destination.handle_gossip((Message<Gossip>)gm.message);
-		} else if (gm.message.data instanceof Event) {
-			destination.handleEvent( (Event) gm.message.data);
+		} else if (msg.message.data instanceof Gossip) {
+			destination.handle_gossip( (Message<Gossip>) msg.message);
+		} else if (msg.message.data instanceof Event) {
+			destination.handleEvent( (Event) msg.message.data);
 		} else {
 			throw new Exception("Unrecognized type of message!");
 		}
 		
-		this.updateView();
+		this.updateView(destination, msg);
 	}
 	
-	public void updateView() {
+	public void updateView(Node currentNode, Timestamped<Message<?>> message) {
 		// --- UPDATE VIEW NETWORK
 		Context context = ContextUtils.getContext(this);
 		Network views = (Network) context.getProjection("views");
@@ -104,16 +105,10 @@ public class Oracle {
 			Node n = (Node) o;
 			nodes.put(n.id, n);
 		});
-
-		// For each node... 
-		nodes.values()
-			 .stream()
-			 .forEach( (Node from) -> {
-				 // ... get it's view, find the corresponding nodes, and add a link to the network
-				 from.view
-				 	 .stream()
-				     .map(nodes::get)
-					 .forEach( (Node to) -> views.addEdge(from, to) );
-			  });
+		
+		currentNode.view
+	 	     	   .stream()
+	 	     	   .map(nodes::get)
+	 	     	   .forEach( (Node to) -> views.addEdge(currentNode, to) );
 	}
 }

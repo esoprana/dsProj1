@@ -1,2 +1,2 @@
 /bin/
-/velocity.log
+*.log
