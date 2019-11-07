@@ -22,16 +22,28 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 
+import org.eclipse.jdt.annotation.NonNull;
+
 import dsProj1.msg.DummyStartGossip;
 import dsProj1.msg.Event;
 import dsProj1.msg.GenericMessage;
 import dsProj1.msg.Gossip;;
 
 public class Node {
+	@NonNull
 	private ContinuousSpace<Object> space;
+
+	@NonNull
 	private Grid<Object> grid;
-	
-	public Node(ContinuousSpace<Object> space, Grid<Object> grid, UUID id, Collection<UUID> initialView, Oracle oracle) {
+
+	@NonNull
+	private Oracle oracle;
+
+	public Node(@NonNull ContinuousSpace<Object> space, 
+			@NonNull Grid<Object> grid, 
+			@NonNull UUID id, 
+			@NonNull Collection<UUID> initialView, 
+			@NonNull Oracle oracle) {
 		if (initialView.size() > Options.VIEWS_SIZE) {
 			throw new IllegalArgumentException("initialView parameter can't be larger than " + Options.VIEWS_SIZE);
 		}
@@ -78,29 +90,30 @@ public class Node {
 	// For each el in retrieveBuf, check if we have waited enough (k rounds) before fetching data (from who told me about the event)
 	// Then if during waiting period the event notification was received in a subsequent gossip message. If not ask for event notification
 	
-	List<UUID> view = new ArrayList<UUID>();//2*Options.VIEWS_SIZE);              // Individual view // TODO: Fix permission(package -> private)
-	private List<UUID> unSubs = new ArrayList<UUID>();//2*Options.UN_SUBS_SIZE);          // Un-subscriptions
-	private List<UUID> subs = new ArrayList<UUID>();//2*Options.SUBS_SIZE);               // Subscriptions
-	private List<UUID> eventIds	= new ArrayList<UUID>();//2*Options.EVENT_IDS_SIZE);      // Events already handled
-	private List<ToRetrieveEv> retrieveBuf = new ArrayList<ToRetrieveEv>();//2*Options.RETRIEVE_SIZE);  // Events to be retrieved
+	@NonNull List<@NonNull UUID> view = new ArrayList<@NonNull UUID>();//2*Options.VIEWS_SIZE);              // Individual view // TODO: Fix permission(package -> private)
+	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>();//2*Options.UN_SUBS_SIZE);          // Un-subscriptions
+	private @NonNull List<@NonNull UUID> subs = new ArrayList<@NonNull UUID>();//2*Options.SUBS_SIZE);               // Subscriptions
+	private @NonNull List<@NonNull UUID> eventIds	= new ArrayList<@NonNull UUID>();//2*Options.EVENT_IDS_SIZE);      // Events already handled
+	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>();//2*Options.RETRIEVE_SIZE);  // Events to be retrieved
 
-	private List<Event> events = new ArrayList<Event>(); // [EVENTS_SIZE]
+	private @NonNull List<@NonNull Event> events = new ArrayList<@NonNull Event>(); // [EVENTS_SIZE]
 
-	private long currentRound = 1;
 	
+	@NonNull
 	public UUID id;
+
 	public boolean state = false;
+	private long currentRound = 1;
+
 	
-	private Oracle oracle;
-	
-	static void shuffle_trim(List l, int dim) {
+	static void shuffle_trim(@NonNull List l, int dim) {
 		if (l.size() > dim) {
 			Collections.shuffle(l);
 			l.subList(dim, l.size()).clear();			
 		}
 	}
 	
-	public void handle_gossip(Gossip g) {
+	public void handle_gossip(@NonNull Gossip g) {
 		// PHASE 1: UPDATE VIEW AND UNSUBS
 		view.removeAll(g.unSubs); // Remove all gossip unsubs from global view
 		subs.removeAll(g.unSubs); // Remove all gossip unsubs from global subs
@@ -145,11 +158,11 @@ public class Node {
 		shuffle_trim(this.events, Options.EVENTS_SIZE);
 	}
 	
-	public void requestRetrieve(UUID eventId, UUID dest) {
+	public void requestRetrieve(@NonNull UUID eventId,@NonNull UUID dest) {
 		// TODO: Da fare
 	}
 	
-	public void send(UUID dest, GenericMessage g) {
+	public void send(@NonNull UUID dest, @NonNull GenericMessage g) {
 		g.process_id = this.id;
 		g.dest = dest;
 
@@ -160,13 +173,13 @@ public class Node {
 		this.oracle.scheduleGossip(Options.GOSSIP_INTERVAL, new DummyStartGossip(this.id));
 	}
 	
-	public void lpbCast(Event e) {
+	public void lpbCast(@NonNull Event e) {
 		if (!this.events.contains(e)) { // TODO: Check equals here
 			this.events.add(e);			
 		}
 	}
 	
-	public void handleEvent(Event ev) {
+	public void handleEvent(@NonNull Event ev) {
 		if (!eventIds.contains(ev.id)) {
 			if (!events.contains(ev)) {
 				events.add(ev);
@@ -178,12 +191,12 @@ public class Node {
 		}
 	}
 	
-	public void lpbDeliver(Event e) {
+	public void lpbDeliver(@NonNull Event e) {
 		// TODO: Da fare, cambia come virtuale puro da fare override
 		// (this is an application override)
 	}
 
-	public void emitGossip() throws Exception {
+	public void emitGossip() {
 		Random rand = new Random();
 				
 		List<UUID> targets = new ArrayList<UUID>(Options.FANOUT_SIZE);

@@ -2,6 +2,13 @@ package dsProj1.msg;
 
 import java.util.UUID;
 
-public class Event extends GenericMessage{
+import org.eclipse.jdt.annotation.NonNull;
+
+public class Event extends GenericMessage {
+	@NonNull
 	public UUID id;
+	
+	public Event(@NonNull UUID eventId) {
+		this.id = eventId;
+	}
 }

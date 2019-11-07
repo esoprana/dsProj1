@@ -1,10 +1,12 @@
 package dsProj1;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+
+import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.Nullable;
 
 import dsProj1.msg.DummyStartGossip;
 import dsProj1.msg.GenericMessage;
@@ -18,21 +20,21 @@ import repast.simphony.util.ContextUtils;
 public class Oracle {
 	public double currentSeconds = 0;
 	
-	List<Timestamped<GenericMessage>> messages = new ArrayList<Timestamped<GenericMessage>>(50);
+	@NonNull List<@NonNull Timestamped<GenericMessage>> messages = new ArrayList<@NonNull Timestamped<GenericMessage>>(50);
 	
-	public void send(GenericMessage msg) {
+	public void send(@NonNull GenericMessage msg) {
 		double delayTo = RandomHelper.createNormal(Options.MEAN_LATENCY, Options.VAR_LATENCY)
 				                     .nextDouble(Options.MEAN_LATENCY, Double.POSITIVE_INFINITY);
 		messages.add(new Timestamped<GenericMessage>(currentSeconds+1/*delayTo*/, msg));
 		//messages.sort(Comparator.comparing((Timestamped<GenericMessage> t) -> t.timestamp));
 	}
 	
-	public void scheduleGossip(double in, DummyStartGossip dg) {
+	public void scheduleGossip(double in, @NonNull DummyStartGossip dg) {
 		messages.add(new Timestamped<GenericMessage>(currentSeconds+in, dg));
 		//messages.sort(Comparator.comparing((Timestamped<GenericMessage> t) -> t.timestamp));
 	}
 	
-	public Node getNode(UUID id) {
+	public @Nullable Node getNode(@NonNull UUID id) {
 		Context context = ContextUtils.getContext(this);
 		for(Object o : context.getObjects(Node.class)) {
 			Node n = (Node) o;

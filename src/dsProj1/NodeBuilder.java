@@ -32,7 +32,7 @@ public class NodeBuilder implements ContextBuilder<Object> {
 	 * #build(repast.simphony.context.Context)
 	 */
 	@Override
-	public Context build(Context<Object> context) {
+	public Context<Object> build(Context<Object> context) {
 		context.setId("dsProj1");
 		
 		ContinuousSpaceFactory spaceFactory = ContinuousSpaceFactoryFinder.createContinuousSpaceFactory(null);
