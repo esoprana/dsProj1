@@ -12,8 +12,10 @@ import java.util.Collection;
 import java.util.UUID;
 
 // Custom libraries
-import newMsg.Message;
-import newMsg.data.Event;
+import dsProj1.msg.Message;
+import dsProj1.msg.data.DummyStartGossip;
+import dsProj1.msg.data.Event;
+import dsProj1.msg.data.Gossip;
 
 // TODO: Decide when to call retrieve()
 // TODO: Decide when to change currentRound
@@ -90,7 +92,7 @@ public class Node {
 		l.subList(dim, l.size()).clear();			
 	}
 	
-	public void handle_gossip(@NonNull Message<newMsg.data.Gossip> g) {
+	public void handle_gossip(@NonNull Message<Gossip> g) {
 		// PHASE 1: UPDATE VIEW AND UNSUBS
 		view.removeAll(g.data.unSubs); // Remove all gossip unsubs from global view
 		subs.removeAll(g.data.unSubs); // Remove all gossip unsubs from global subs
@@ -144,9 +146,9 @@ public class Node {
 	}
 	
 	public void scheduleGossip(double delay) {
-		Message<newMsg.data.DummyStartGossip> msg = new Message<newMsg.data.DummyStartGossip>(this.id, 
-																							  this.id, 
-																							  new newMsg.data.DummyStartGossip());
+		Message<DummyStartGossip> msg = new Message<DummyStartGossip>(this.id, 
+																	  this.id, 
+																	  new DummyStartGossip());
 		
 		this.oracle.scheduleGossip(delay, msg);
 	}
@@ -200,7 +202,7 @@ public class Node {
 			s.set(rand.nextInt(this.subs.size()), this.id);
 		
 		// Create the gossip and sent it
-		newMsg.data.Gossip g = new newMsg.data.Gossip(this.unSubs, s, this.eventIds, this.events);
+		Gossip g = new Gossip(this.unSubs, s, this.eventIds, this.events);
 		targets.forEach(t -> this.send(t, g));
 				 
 		this.events.clear(); // TODO: DUFAQ

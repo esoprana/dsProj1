@@ -11,21 +11,15 @@ import repast.simphony.context.Context;
 import repast.simphony.context.space.continuous.ContinuousSpaceFactory;
 import repast.simphony.context.space.continuous.ContinuousSpaceFactoryFinder;
 import repast.simphony.context.space.graph.NetworkBuilder;
-import repast.simphony.context.space.grid.GridFactory;
-import repast.simphony.context.space.grid.GridFactoryFinder;
 import repast.simphony.dataLoader.ContextBuilder;
 import repast.simphony.space.continuous.ContinuousSpace;
-import repast.simphony.space.continuous.NdPoint;
 import repast.simphony.space.continuous.RandomCartesianAdder;
 import repast.simphony.space.graph.Network;
-import repast.simphony.space.grid.WrapAroundBorders;
-import repast.simphony.space.grid.Grid;
-import repast.simphony.space.grid.GridBuilderParameters;
-import repast.simphony.space.grid.SimpleGridAdder;
 
-//Custom libraries
-import newMsg.Message;
-import newMsg.data.DummyStartGossip;
+// Custom libraries
+import dsProj1.msg.Message;
+import dsProj1.msg.data.DummyStartGossip;
+
 
 public class NodeBuilder implements ContextBuilder<Object> {
 

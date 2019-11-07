@@ -18,8 +18,10 @@ import repast.simphony.space.graph.Network;
 import repast.simphony.util.ContextUtils;
 
 // Custom libraries
-import newMsg.Message;
-
+import dsProj1.msg.Message;
+import dsProj1.msg.data.DummyStartGossip;
+import dsProj1.msg.data.Event;
+import dsProj1.msg.data.Gossip;
 
 public class Oracle {
 	public double currentSeconds = 0;
@@ -33,7 +35,7 @@ public class Oracle {
 		//messages.sort(Comparator.comparing((Timestamped t) -> t.timestamp));
 	}
 	
-	public void scheduleGossip(double in, @NonNull Message<newMsg.data.DummyStartGossip> dg) {
+	public void scheduleGossip(double in, @NonNull Message<DummyStartGossip> dg) {
 		messages.add(new Timestamped<Message<?>>(currentSeconds+in, dg));
 		//messages.sort(Comparator.comparing((Timestamped t) -> t.timestamp));
 	}
@@ -75,12 +77,12 @@ public class Oracle {
 			return;
 		}
 		
-		if (gm.message.data instanceof newMsg.data.DummyStartGossip) {
+		if (gm.message.data instanceof DummyStartGossip) {
 			destination.emitGossip();
-		} else if (gm.message.data instanceof newMsg.data.Gossip) {
-			destination.handle_gossip((Message<newMsg.data.Gossip>)gm.message);
-		} else if (gm.message.data instanceof newMsg.data.Event) {
-			destination.handleEvent( (newMsg.data.Event) gm.message.data);
+		} else if (gm.message.data instanceof Gossip) {
+			destination.handle_gossip((Message<Gossip>)gm.message);
+		} else if (gm.message.data instanceof Event) {
+			destination.handleEvent( (Event) gm.message.data);
 		} else {
 			throw new Exception("Unrecognized type of message!");
 		}

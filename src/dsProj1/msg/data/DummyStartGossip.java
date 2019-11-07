@@ -1,3 +1,3 @@
-package newMsg.data;
+package dsProj1.msg.data;
 
 public class DummyStartGossip {}

@@ -4,7 +4,7 @@ package dsProj1;
 import org.eclipse.jdt.annotation.NonNull;
 
 // Custom libraries
-import newMsg.Message;
+import dsProj1.msg.Message;
 
 public class Timestamped<T extends Message<?>> {
 	public final double timestamp;

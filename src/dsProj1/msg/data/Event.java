@@ -1,4 +1,4 @@
-package newMsg.data;
+package dsProj1.msg.data;
 
 // Support libraries
 import org.eclipse.jdt.annotation.NonNull;
