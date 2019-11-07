@@ -1,15 +1,17 @@
 package dsProj1;
 
+// Support libraries
 import org.eclipse.jdt.annotation.NonNull;
 
-public class Timestamped<T> {
-	public double timestamp;
+// Custom libraries
+import newMsg.Message;
+
+public class Timestamped<T extends Message<?>> {
+	public final double timestamp;
+	public final @NonNull T message;
 	
-	@NonNull
-	public T data;
-	
-	public Timestamped(double timestamp, @NonNull T data) {
+	public Timestamped(double timestamp, @NonNull T message) {
 		this.timestamp = timestamp;
-		this.data = data;
+		this.message = message;
 	}
 }

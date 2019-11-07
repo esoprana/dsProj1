@@ -12,10 +12,8 @@ import java.util.UUID;
 
 import org.eclipse.jdt.annotation.NonNull;
 
-import dsProj1.msg.DummyStartGossip;
-import dsProj1.msg.Event;
-import dsProj1.msg.GenericMessage;
-import dsProj1.msg.Gossip;;
+import newMsg.Message;
+import newMsg.data.Event;
 
 // TODO: Decide when to call retrieve()
 // TODO: Decide when to change currentRound
@@ -94,26 +92,26 @@ public class Node {
 		l.subList(dim, l.size()).clear();			
 	}
 	
-	public void handle_gossip(@NonNull Gossip g) {
+	public void handle_gossip(@NonNull Message<newMsg.data.Gossip> g) {
 		// PHASE 1: UPDATE VIEW AND UNSUBS
-		view.removeAll(g.unSubs); // Remove all gossip unsubs from global view
-		subs.removeAll(g.unSubs); // Remove all gossip unsubs from global subs
+		view.removeAll(g.data.unSubs); // Remove all gossip unsubs from global view
+		subs.removeAll(g.data.unSubs); // Remove all gossip unsubs from global subs
 		
-		g.unSubs.stream()
-				.filter((UUID it) -> !unSubs.contains(it)) // Remove already contained
-				.forEach(unSubs::add);     				   // Add unsubs from gossip to local unsubs
+		g.data.unSubs.stream()
+				     .filter((UUID it) -> !unSubs.contains(it)) // Remove already contained
+				     .forEach(unSubs::add);     				// Add unsubs from gossip to local unsubs
 				
 		// Randomly select UN_SUBS_SIZE values from unsub, this is the new unsubs		
 		shuffle_trim(unSubs, Options.UN_SUBS_SIZE);
 		
 		// PHASE 2: ADD NEW SUBSCRIPTIONS
-		g.subs.stream() // TODO: Check variables
-			  .filter((UUID it) -> !this.view.contains(it) && !it.equals(this.id))
-			  .forEach((UUID it) -> {
-					if (!this.subs.contains(it)) this.subs.add(it);
+		g.data.subs.stream() // TODO: Check variables
+			  	   .filter((UUID it) -> !this.view.contains(it) && !it.equals(this.id))
+			  	   .forEach((UUID it) -> {
+			  		   if (!this.subs.contains(it)) this.subs.add(it);
 					 
-					this.view.add(it);
-			  });
+					   this.view.add(it);
+			  	   });
 		
 		if (this.view.size() > Options.VIEWS_SIZE) {
 			Collections.shuffle(this.view);
@@ -125,12 +123,12 @@ public class Node {
 		shuffle_trim(this.subs, Options.SUBS_SIZE);
 		
 		// PHASE 3: UPDATE EVENTS WITH NEW NOTIFICATIONS
-		g.events.forEach(this::handleEvent); // Handle all new events
+		g.data.events.forEach(this::handleEvent); // Handle all new events
 		
-		g.eventIds.stream()
+		g.data.eventIds.stream()
 				  .filter( (UUID it) -> !this.eventIds.contains(it) )
 				  .forEach( (UUID it) -> {
-					  retrieveBuf.add(new ToRetrieveEv(it, currentRound, g.process_id));
+					  retrieveBuf.add(new ToRetrieveEv(it, currentRound, g.source));
 				  });
 		
 		shuffle_trim(this.eventIds, Options.EVENT_IDS_SIZE); // TODO:  This is to optimize using timestamps
@@ -141,16 +139,18 @@ public class Node {
 		// TODO: Da fare
 	}
 	
-	public void send(@NonNull UUID dest, @NonNull GenericMessage g) {
-		g.process_id = this.id;
-		g.dest = dest;
+	public void send(@NonNull UUID destination, @NonNull Object data) {
+		Message<Object> msg = new Message<Object>(this.id, destination, data);
 
-		this.oracle.send(g);
+		this.oracle.send(msg);
 	}
 	
 	public void scheduleGossip(double delay) {
-		this.oracle.scheduleGossip(delay, 
-								   new DummyStartGossip(this.id));
+		Message<newMsg.data.DummyStartGossip> msg = new Message<newMsg.data.DummyStartGossip>(this.id, 
+																							  this.id, 
+																							  new newMsg.data.DummyStartGossip());
+		
+		this.oracle.scheduleGossip(delay, msg);
 	}
 	
 	public void lpbCast(@NonNull Event e) {
@@ -173,10 +173,10 @@ public class Node {
 		this.lpbDeliver(ev);
 
 		// Add the id of the event
-		this.eventIds.add(ev.id);
+		this.eventIds.add(ev.eventId);
 	}
 	
-	public void lpbDeliver(@NonNull Event e) {
+	public void lpbDeliver(@NonNull Event ev) {
 		// TODO: Da fare, cambia come virtuale puro, da fare override
 		// (this is an application override)
 	}
@@ -202,7 +202,7 @@ public class Node {
 			s.set(rand.nextInt(this.subs.size()), this.id);
 		
 		// Create the gossip and sent it
-		Gossip g = new Gossip(this.unSubs, s, this.eventIds, this.events);
+		newMsg.data.Gossip g = new newMsg.data.Gossip(this.unSubs, s, this.eventIds, this.events);
 		targets.forEach(t -> this.send(t, g));
 				 
 		this.events.clear(); // TODO: DUFAQ

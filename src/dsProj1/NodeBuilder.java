@@ -2,11 +2,11 @@ package dsProj1;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
-import dsProj1.msg.DummyStartGossip;
+import newMsg.Message;
+import newMsg.data.DummyStartGossip;
 import repast.simphony.context.Context;
 import repast.simphony.context.space.continuous.ContinuousSpaceFactory;
 import repast.simphony.context.space.continuous.ContinuousSpaceFactoryFinder;
@@ -79,7 +79,7 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			context.add(n);
 
 			// Schedule its first gossip // TODO: Change timings (maybe random or something)
-			oracle.scheduleGossip(0, new DummyStartGossip(n.id));
+			oracle.scheduleGossip(0, new Message<>(n.id, n.id, new DummyStartGossip()));
 		}
 		
 		// Move all nodes to random positions for visualization
