@@ -45,7 +45,7 @@ public class NodeBuilder implements ContextBuilder<Object> {
 		Oracle oracle = new Oracle();
 		context.add(oracle);
 		
-		int nodeCount = 35;
+		int nodeCount = Options.NODE_COUNT;
 		
 		List<UUID> nodes = new ArrayList<UUID>(nodeCount);
 		for (int i = 0; i< nodeCount; i++) {

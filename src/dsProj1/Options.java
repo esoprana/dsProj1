@@ -19,4 +19,6 @@ public interface Options {
 	
 	static final double GOSSIP_INTERVAL = 30;
 	
+	
+	static final int NODE_COUNT = 35;
 }
