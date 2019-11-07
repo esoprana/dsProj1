@@ -10,10 +10,10 @@ import org.eclipse.jdt.annotation.NonNull;
 import dsProj1.Options;
 
 public class Gossip extends GenericMessage{
-	public @NonNull List<@NonNull UUID> unSubs;   // Un-subscriptions
-	public @NonNull List<@NonNull UUID> subs;     // Subscriptions
-	public @NonNull List<@NonNull UUID> eventIds; // Ids of already handled events already handled
-	public @NonNull List<@NonNull Event> events;  // Event ids
+	public final @NonNull List<@NonNull UUID> unSubs;   // Un-subscriptions
+	public final @NonNull List<@NonNull UUID> subs;     // Subscriptions
+	public final @NonNull List<@NonNull UUID> eventIds; // Ids of already handled events already handled
+	public final @NonNull List<@NonNull Event> events;  // Event ids
 	
 	public Gossip() {
 		this.unSubs = new ArrayList<@NonNull UUID>(Options.UN_SUBS_SIZE);          // Un-subscriptions

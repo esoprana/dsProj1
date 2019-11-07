@@ -4,7 +4,8 @@ import java.util.UUID;
 
 public class GenericMessage {
 	// @NonNull TODO: Add constructor and nonnull
-	public UUID process_id;
+	public /*final*/ UUID process_id;
+	
 	// @NonNull TODO: Add constructor and nonnull
-	public UUID dest = null;
+	public /*final*/ UUID dest = null;
 }

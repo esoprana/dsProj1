@@ -6,7 +6,7 @@ import org.eclipse.jdt.annotation.NonNull;
 
 public class Event extends GenericMessage {
 	@NonNull
-	public UUID id;
+	public final UUID id;
 	
 	public Event(@NonNull UUID eventId) {
 		this.id = eventId;

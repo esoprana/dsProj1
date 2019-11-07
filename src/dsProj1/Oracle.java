@@ -48,10 +48,13 @@ public class Oracle {
 	
 	@ScheduledMethod(start = 1, interval = 1)
 	public void step() throws Exception{
-		System.out.println(messages);
+		if (messages.isEmpty()) {
+			System.err.println("No more messages!");
+			return;
+		}
+		
 		Timestamped<GenericMessage> gm = messages.remove(0);
 		this.currentSeconds = gm.timestamp;
-		System.out.println("CURRENT TIME: " + this.currentSeconds);
 		
 		Node destination = this.getNode(gm.data.dest);		
 		
@@ -62,6 +65,7 @@ public class Oracle {
 		
 		System.out.println(gm.data.getClass().getName().toUpperCase() + " --- of node " + destination.id);
 		System.out.println(gm.data);
+		
 		if (gm.data instanceof DummyStartGossip) {
 			destination.emitGossip();
 		} else if (gm.data instanceof Gossip) {
@@ -73,21 +77,28 @@ public class Oracle {
 	}
 	
 	public void updateView() {
-		// Update view network
+		// --- UPDATE VIEW NETWORK
 		Context context = ContextUtils.getContext(this);
 		Network views = (Network) context.getProjection("views");
 
+		// Remove old edges
 		views.removeEdges();
 
+		// Create a map (id: UUID -> node: Node)
 		HashMap<UUID, Node> nodes = new HashMap<UUID, Node>();
-
 		context.getObjects(Node.class).forEach((Object o) -> {
 			Node n = (Node) o;
 			nodes.put(n.id, n);
 		});
 
-		nodes.values().stream().forEach((Node n) -> {
-			n.view.forEach( (UUID l) -> views.addEdge(n, nodes.get(l)) );
-		});
+		// For each node... 
+		nodes.values()
+			 .stream()
+			 .forEach( (Node from) -> {
+				 // ... get it's view, find the corresponding nodes, and add a link to the network
+				 from.view.stream()
+				     .map(nodes::get)
+					 .forEach( (Node to) -> views.addEdge(from, to) );
+			  });
 	}
 }

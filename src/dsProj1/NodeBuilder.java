@@ -33,8 +33,10 @@ public class NodeBuilder implements ContextBuilder<Object> {
 	 */
 	@Override
 	public Context<Object> build(Context<Object> context) {
+		// Set id of context
 		context.setId("dsProj1");
 		
+		// Create grid and space
 		ContinuousSpaceFactory spaceFactory = ContinuousSpaceFactoryFinder.createContinuousSpaceFactory(null);
 		ContinuousSpace<Object> space = spaceFactory.createContinuousSpace("space", 
 																		   context, 
@@ -53,6 +55,7 @@ public class NodeBuilder implements ContextBuilder<Object> {
 														                             50, 
 														                             50));
 
+		// Create oracle and add it to the context (so that the oracle can obtain the data)
 		Oracle oracle = new Oracle();
 		context.add(oracle);
 		
@@ -69,19 +72,18 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			// Randomize position of nodes ids in nodes_uuid_copy
 			Collections.shuffle(nodes_uuid_copy);
 			
-			// Create node with random connections (of size VIEWS_SIZE)
-			Node n = new Node(space, 
-							  grid, 
-							  nodes.get(i), 
-							  nodes_uuid_copy.subList(0, Options.VIEWS_SIZE),
+			// Create node with random connections (of size VIEWS_SIZE) and add it to the context
+			Node n = new Node(nodes.get(i), 
+							  nodes_uuid_copy.subList(0, Options.VIEWS_SIZE), // copy is done on Node's side
 							  oracle);
 			context.add(n);
 
-			System.out.println("ADDING GOSSIP OF "+ n.id);
+			// Schedule its first gossip // TODO: Change timings (maybe random or something)
 			oracle.scheduleGossip(0, new DummyStartGossip(n.id));
 		}
-
-		for (Object obj: context) {
+		
+		// Move all nodes to random positions for visualization
+		for (Object obj: context.getObjects(Node.class)) {
 			NdPoint pt = space.getLocation(obj);
 			grid.moveTo(obj, (int)pt.getX(), (int)pt.getY());
 		}
