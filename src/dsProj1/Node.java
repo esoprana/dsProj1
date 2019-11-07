@@ -1,8 +1,9 @@
 package dsProj1;
 
-import repast.simphony.space.continuous.ContinuousSpace;
-import repast.simphony.space.grid.Grid;
+// Support libraries
+import org.eclipse.jdt.annotation.NonNull;
 
+// Standard libraries
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -10,8 +11,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 
-import org.eclipse.jdt.annotation.NonNull;
-
+// Custom libraries
 import newMsg.Message;
 import newMsg.data.Event;
 
@@ -19,8 +19,7 @@ import newMsg.data.Event;
 // TODO: Decide when to change currentRound
 
 public class Node {
-	@NonNull
-	private Oracle oracle;
+	private final @NonNull Oracle oracle;
 
 	public Node(@NonNull UUID id, 
 				@NonNull Collection<@NonNull UUID> initialView, 
@@ -77,10 +76,9 @@ public class Node {
 	private @NonNull List<@NonNull Event> events = new ArrayList<@NonNull Event>(); // [EVENTS_SIZE]
 
 	
-	@NonNull
-	public UUID id;
+	public @NonNull UUID id;
 
-	public boolean state = false;
+	public boolean alive = true;
 	private long currentRound = 1;
 
 	
@@ -153,7 +151,7 @@ public class Node {
 		this.oracle.scheduleGossip(delay, msg);
 	}
 	
-	public void lpbCast(@NonNull Event e) {
+	public void lpbCast(@NonNull Event e) { // TODO: To integrate in some way with sending
 		// If the event was already (completely/in full) received ignore
 		if (this.events.contains(e))
 			return;
@@ -220,18 +218,18 @@ public class Node {
 			}		
 
 			// ??
-			if (this.eventIds.contains(el.event_id))
+			if (this.eventIds.contains(el.eventId))
 				return;
 			
 			switch((int)el.noRequests) {
 				case -1: // If is the first time this happens ask to who sent us the related gossip
-					this.requestRetrieve(el.event_id, el.sender);
+					this.requestRetrieve(el.eventId, el.sender);
 					el.noRequests++;
 					el.requestedAtRound = this.currentRound;
 					break;
 				case 0: // If it's the second time ask to a random node
 					if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-						this.requestRetrieve(el.event_id, this.view.get(new Random().nextInt(this.view.size())));
+						this.requestRetrieve(el.eventId, this.view.get(new Random().nextInt(this.view.size())));
 						el.noRequests++;
 						el.requestedAtRound = this.currentRound;
 					}

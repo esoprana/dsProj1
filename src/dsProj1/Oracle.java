@@ -51,30 +51,38 @@ public class Oracle {
 	}
 	
 	@ScheduledMethod(start = 1, interval = 1)
-	public void step() {
-		if (messages.isEmpty()) {
-			System.err.println("No more messages!");
-			return;
-		}
+	public void step() throws Exception {
+		// If nothing is scheduled something bad happened (there should be at least some periodic event)
+		if (messages.isEmpty())
+			throw new Exception("No more messages/events!");
 		
 		Timestamped<Message<?>> gm = messages.remove(0);
 		this.currentSeconds = gm.timestamp;
 		
 		Node destination = this.getNode(gm.message.destination);		
 		
+		// If there is no destination something bad happened (the node should never be removed from the context, use DEAD status instead)
 		if (destination == null) {
-			System.err.println("Destination is null!");
-			return; // If no modification happens no reason for updating anything
+			throw new Exception("Destination of message is null!");
 		}
 		
-		System.out.println(gm.message.getClass().getName().toUpperCase() + " --- of node " + destination.id);
+		System.out.println(gm.message.getClass().getName().toUpperCase() + " --- of node " + destination.id + "(" + (destination.alive?"alive":"dead") + ")");
 		System.out.println(gm.message);
+
+		// If destination is dead, update the view and exit immediately (do not use any handle*)
+		if (!destination.alive) {
+			this.updateView();
+			return;
+		}
 		
 		if (gm.message.data instanceof newMsg.data.DummyStartGossip) {
 			destination.emitGossip();
 		} else if (gm.message.data instanceof newMsg.data.Gossip) {
 			destination.handle_gossip((Message<newMsg.data.Gossip>)gm.message);
-			System.out.println(destination.view);
+		} else if (gm.message.data instanceof newMsg.data.Event) {
+			destination.handleEvent( (newMsg.data.Event) gm.message.data);
+		} else {
+			throw new Exception("Unrecognized type of message!");
 		}
 		
 		this.updateView();
@@ -100,7 +108,8 @@ public class Oracle {
 			 .stream()
 			 .forEach( (Node from) -> {
 				 // ... get it's view, find the corresponding nodes, and add a link to the network
-				 from.view.stream()
+				 from.view
+				 	 .stream()
 				     .map(nodes::get)
 					 .forEach( (Node to) -> views.addEdge(from, to) );
 			  });

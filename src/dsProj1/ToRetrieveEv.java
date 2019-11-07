@@ -5,11 +5,9 @@ import java.util.UUID;
 import org.eclipse.jdt.annotation.NonNull;
 
 public class ToRetrieveEv {
-	@NonNull
-	public UUID event_id;
 	
-	@NonNull
-	public UUID sender;
+	public final @NonNull UUID eventId;
+	public final @NonNull UUID sender;
 
 	// TODO: Use source
 	//@NonNull
@@ -20,8 +18,8 @@ public class ToRetrieveEv {
 	public long noRequests = 0;
 	public long requestedAtRound = -1;
 	
-	public ToRetrieveEv(@NonNull UUID event_id, long round, @NonNull UUID sender) {
-		this.event_id = event_id;
+	public ToRetrieveEv(@NonNull UUID eventId, long round, @NonNull UUID sender) {
+		this.eventId = eventId;
 		this.round = round;
 		this.sender = sender;
 	}

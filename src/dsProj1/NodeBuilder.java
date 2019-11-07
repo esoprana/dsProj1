@@ -1,21 +1,19 @@
 package dsProj1;
 
+// Standard libraries
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import newMsg.Message;
-import newMsg.data.DummyStartGossip;
+// Repast libraries
 import repast.simphony.context.Context;
 import repast.simphony.context.space.continuous.ContinuousSpaceFactory;
 import repast.simphony.context.space.continuous.ContinuousSpaceFactoryFinder;
 import repast.simphony.context.space.graph.NetworkBuilder;
 import repast.simphony.context.space.grid.GridFactory;
 import repast.simphony.context.space.grid.GridFactoryFinder;
-
 import repast.simphony.dataLoader.ContextBuilder;
-
 import repast.simphony.space.continuous.ContinuousSpace;
 import repast.simphony.space.continuous.NdPoint;
 import repast.simphony.space.continuous.RandomCartesianAdder;
@@ -24,6 +22,10 @@ import repast.simphony.space.grid.WrapAroundBorders;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridBuilderParameters;
 import repast.simphony.space.grid.SimpleGridAdder;
+
+//Custom libraries
+import newMsg.Message;
+import newMsg.data.DummyStartGossip;
 
 public class NodeBuilder implements ContextBuilder<Object> {
 
@@ -44,16 +46,6 @@ public class NodeBuilder implements ContextBuilder<Object> {
 																		   new repast.simphony.space.continuous.WrapAroundBorders(), 
 																		   50, 
 																		   50);
-		
-		GridFactory gridFactory = GridFactoryFinder.createGridFactory(null);
-		
-		Grid<Object> grid = gridFactory.createGrid("grid", 
-												   context, 
-												   new GridBuilderParameters<Object>(new WrapAroundBorders(), 
-														                             new SimpleGridAdder<Object>(), 
-														                             true, 
-														                             50, 
-														                             50));
 
 		// Create oracle and add it to the context (so that the oracle can obtain the data)
 		Oracle oracle = new Oracle();
@@ -81,13 +73,6 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			// Schedule its first gossip // TODO: Change timings (maybe random or something)
 			oracle.scheduleGossip(0, new Message<>(n.id, n.id, new DummyStartGossip()));
 		}
-		
-		// Move all nodes to random positions for visualization
-		for (Object obj: context.getObjects(Node.class)) {
-			NdPoint pt = space.getLocation(obj);
-			grid.moveTo(obj, (int)pt.getX(), (int)pt.getY());
-		}
-
 
 		NetworkBuilder builder = new NetworkBuilder("views", context, false);
 		Network network = builder.buildNetwork();

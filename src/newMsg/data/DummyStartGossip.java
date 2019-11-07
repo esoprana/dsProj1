@@ -1,4 +1,3 @@
 package newMsg.data;
 
-public class DummyStartGossip {
-}
+public class DummyStartGossip {}
