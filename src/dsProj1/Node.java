@@ -202,7 +202,7 @@ public class Node {
 			s.set(rand.nextInt(this.subs.size()), this.id);
 		
 		// Create the gossip and sent it
-		Gossip g = new Gossip(this.unSubs, s, this.eventIds, this.events);
+		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
 		targets.forEach(t -> this.send(t, g));
 				 
 		this.events.clear(); // TODO: DUFAQ

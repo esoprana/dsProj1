@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -28,16 +29,28 @@ import dsProj1.msg.data.Gossip;
 public class Oracle {
 	public double currentSeconds = 0;
 	
+	public static double normal(double mean, double var) {
+		return RandomHelper.createNormal(mean, var)
+		 				   .apply(RandomHelper.nextDoubleFromTo(0, 1));
+	}
+	
+	public static double normalCut(double mean, double var) {
+		double ris = normal(mean, var);
+
+		return ris < 0?0:ris;
+	}
+	
 	@NonNull TreeSet<@NonNull Timestamped<Message<?>>> messages = new TreeSet<@NonNull Timestamped<Message<?>>>();
 	
 	public void send(@NonNull Message<?> msg) {
-		double delayTo = RandomHelper.createNormal(Options.MEAN_LATENCY, Options.VAR_LATENCY)
-				                     .nextDouble(Options.MEAN_LATENCY, Double.POSITIVE_INFINITY);
+		double delayTo = normalCut(Options.MEAN_LATENCY, Options.VAR_LATENCY);
 		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, msg));
 	}
 	
 	public void scheduleGossip(double in, @NonNull Message<DummyStartGossip> dg) {
-		messages.add(new Timestamped<Message<?>>(currentSeconds+in, dg));
+		// TODO: Add clock drift?
+		double delayTo = normalCut(in, in*Options.DRIFT_PER_SECOND);
+		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, dg));
 	}
 	
 	public @Nullable Node getNode(@NonNull UUID id) {
@@ -59,22 +72,22 @@ public class Oracle {
 		// If nothing is scheduled something bad happened (there should be at least some periodic event)
 		if(msg == null)
 			throw new Exception("No more messages/events!");
-		 
+		
 		this.currentSeconds = msg.timestamp;
-		
+
 		Node destination = this.getNode(msg.message.destination);		
-		
+
 		// If there is no destination something bad happened (the node should never be removed from the context, use DEAD status instead)
 		if (destination == null) {
 			throw new Exception("Destination of message is null!");
 		}
 		
-		System.out.println(msg.message.getClass().getName().toUpperCase() + " --- of node " + destination.id + "(" + (destination.alive?"alive":"dead") + ")");
+		System.out.println(msg.timestamp*1000 + "ms - " + msg.message.data.getClass().getSimpleName() + " --- of node " + destination.id + "(" + (destination.alive?"alive":"dead") + ")");
 		System.out.println(msg.message);
 
 		// If destination is dead, update the view and exit immediately (do not use any handle*)
 		if (!destination.alive) {
-			this.updateView(destination, msg);
+			this.updateView(msg);
 			return;
 		}
 		
@@ -88,17 +101,34 @@ public class Oracle {
 			throw new Exception("Unrecognized type of message!");
 		}
 		
-		this.updateView(destination, msg);
+		this.updateView(msg);
 	}
 	
-	public void updateView(Node currentNode, Timestamped<Message<?>> message) {
-		// --- UPDATE VIEW NETWORK
+	public void updateView(Timestamped<Message<?>> msg) {
+		// Get source and destination (if scheduled event of node, source and destination are the same)
+		Node source = this.getNode(msg.message.source);
+		Node destination = this.getNode(msg.message.destination);
+		
+		// If source or destination are null, log and exit function
+		if (source == null) {
+			System.err.println("Error during visualization, message has as source a null value");
+			return;
+		} else if (destination == null) { 
+			System.err.println("Error during visualization, message has as destination a null value");
+			return;
+		}
+	
+		// Get networks
 		Context context = ContextUtils.getContext(this);
-		Network views = (Network) context.getProjection("views");
+	
+		Network networkView = (Network) context.getProjection("view");
+		Network networkMessage = (Network) context.getProjection("message");
 
 		// Remove old edges
-		views.removeEdges();
+		networkView.removeEdges();
+		networkMessage.removeEdges();
 
+		// - View network
 		// Create a map (id: UUID -> node: Node)
 		HashMap<UUID, Node> nodes = new HashMap<UUID, Node>();
 		context.getObjects(Node.class).forEach((Object o) -> {
@@ -106,9 +136,12 @@ public class Oracle {
 			nodes.put(n.id, n);
 		});
 		
-		currentNode.view
-	 	     	   .stream()
-	 	     	   .map(nodes::get)
-	 	     	   .forEach( (Node to) -> views.addEdge(currentNode, to) );
+		source.view
+	 	      .stream()
+	 	      .map(nodes::get)
+	 	      .forEach( (Node to) -> networkView.addEdge(source, to) );
+		
+		// - Message network
+		networkMessage.addEdge(source, destination);
 	}
 }

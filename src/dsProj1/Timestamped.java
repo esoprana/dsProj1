@@ -17,6 +17,11 @@ public class Timestamped<T extends Message<?>> implements Comparable<Timestamped
 	
 	@Override
 	public int compareTo(Timestamped other) {
-	    return Double.compare(this.timestamp, other.timestamp);
+	    int cmpTimestamp = Double.compare(this.timestamp, other.timestamp);
+	    
+	    if(cmpTimestamp != 0)
+	    	return cmpTimestamp;
+	
+	    return this.message.compareTo(other.message);
 	}
 }

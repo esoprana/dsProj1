@@ -44,4 +44,12 @@ public class Gossip {
 		this.eventIds = new ArrayList<@NonNull UUID>(eventIds);
 		this.events = new ArrayList<dsProj1.msg.data.Event>(events);
 	}
+	
+	@Override
+	public String toString() {
+		return "{ subs: " + this.subs + ",\n" +
+			   "  unSubs: " + this.unSubs + ",\n" +
+			   "  eventIds: " + this.eventIds + ",\n" +
+			   "  events: " + this.events + " }";
+	}
 }

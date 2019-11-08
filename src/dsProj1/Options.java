@@ -15,9 +15,10 @@ public interface Options {
 	static final int REQUEST_TIMEOUT_ROUNDS = 5;
 	
 	static final double MEAN_LATENCY = 0.013;
-	static final double VAR_LATENCY = 0.03;
+	static final double VAR_LATENCY = 0.003;
 	
 	static final double GOSSIP_INTERVAL = 30;
+	static final double DRIFT_PER_SECOND = 1e-6;
 	
 	
 	static final int NODE_COUNT = 35;

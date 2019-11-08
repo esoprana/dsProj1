@@ -12,4 +12,9 @@ public class Event {
 	public Event(@NonNull UUID eventId) {
 		this.eventId = eventId;
 	}
+	
+	@Override
+	public String toString() {
+		return "{ eventId: " + this.eventId + " }";
+	}
 }
