@@ -2,6 +2,10 @@
 		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
 		 xsi:noNamespaceSchemaLocation="http://repast.org/scenario/context">
 	<projection type="continuous space" id="space"></projection>
-  	<projection  type="network" id="view"/>
-  	<projection  type="network" id="message"/>
+  	<projection  type="network" id="view">
+  	    <attribute id="directed" type="boolean" value="true"/>
+  	</projection>
+  	<projection  type="network" id="message">
+  	  	    <attribute id="directed" type="boolean" value="true"/>
+  	</projection>
 </context>

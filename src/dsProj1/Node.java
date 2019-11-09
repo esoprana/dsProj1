@@ -13,7 +13,7 @@ import java.util.UUID;
 
 // Custom libraries
 import dsProj1.msg.Message;
-import dsProj1.msg.data.DummyStartGossip;
+import dsProj1.msg.data.RoundStart;
 import dsProj1.msg.data.Event;
 import dsProj1.msg.data.Gossip;
 
@@ -72,7 +72,7 @@ public class Node {
 	@NonNull List<@NonNull UUID> view = new ArrayList<@NonNull UUID>(2*Options.VIEWS_SIZE);              					   // Individual view // TODO: Fix permission(package -> private)
 	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>(2*Options.UN_SUBS_SIZE);          			   // Un-subscriptions
 	private @NonNull List<@NonNull UUID> subs = new ArrayList<@NonNull UUID>(2*Options.SUBS_SIZE);               			   // Subscriptions
-	private @NonNull List<@NonNull UUID> eventIds	= new ArrayList<@NonNull UUID>(2*Options.EVENT_IDS_SIZE);      			   // Events already handled
+	private @NonNull List<@NonNull EventId> eventIds	= new ArrayList<@NonNull EventId>(2*Options.EVENT_IDS_SIZE);      			   // Events already handled
 	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>(2*Options.RETRIEVE_SIZE);  // Events to be retrieved
 
 	private @NonNull List<@NonNull Event> events = new ArrayList<@NonNull Event>(2*Options.EVENTS_SIZE);
@@ -84,7 +84,7 @@ public class Node {
 	private long currentRound = 1;
 
 	
-	static void shuffle_trim(@NonNull List<?> l, int dim) {
+	static void shuffleTrim(@NonNull List<?> l, int dim) {
 		if (l.size() <= dim) 
 			return;
 		
@@ -92,7 +92,7 @@ public class Node {
 		l.subList(dim, l.size()).clear();			
 	}
 	
-	public void handle_gossip(@NonNull Message<Gossip> g) {
+	public void handleGossip(@NonNull Message<Gossip> g) {
 		// PHASE 1: UPDATE VIEW AND UNSUBS
 		view.removeAll(g.data.unSubs); // Remove all gossip unsubs from global view
 		subs.removeAll(g.data.unSubs); // Remove all gossip unsubs from global subs
@@ -102,7 +102,7 @@ public class Node {
 				     .forEach(unSubs::add);     				// Add unsubs from gossip to local unsubs
 				
 		// Randomly select UN_SUBS_SIZE values from unsub, this is the new unsubs		
-		shuffle_trim(unSubs, Options.UN_SUBS_SIZE);
+		shuffleTrim(unSubs, Options.UN_SUBS_SIZE);
 		
 		// PHASE 2: ADD NEW SUBSCRIPTIONS
 		g.data.subs.stream() // TODO: Check variables
@@ -120,22 +120,22 @@ public class Node {
 			t.clear();
 		}
 		
-		shuffle_trim(this.subs, Options.SUBS_SIZE);
+		shuffleTrim(this.subs, Options.SUBS_SIZE);
 		
 		// PHASE 3: UPDATE EVENTS WITH NEW NOTIFICATIONS
 		g.data.events.forEach(this::handleEvent); // Handle all new events
 		
 		g.data.eventIds.stream()
-				  .filter( (UUID it) -> !this.eventIds.contains(it) )
-				  .forEach( (UUID it) -> {
+				  .filter( (EventId it) -> !this.eventIds.contains(it) )
+				  .forEach( (EventId it) -> {
 					  retrieveBuf.add(new ToRetrieveEv(it, currentRound, g.source));
 				  });
 		
-		shuffle_trim(this.eventIds, Options.EVENT_IDS_SIZE); // TODO:  This is to optimize using timestamps
-		shuffle_trim(this.events, Options.EVENTS_SIZE);
+		shuffleTrim(this.eventIds, Options.EVENT_IDS_SIZE); // TODO:  This is to optimize using timestamps
+		shuffleTrim(this.events, Options.EVENTS_SIZE);
 	}
 	
-	public void requestRetrieve(@NonNull UUID eventId,@NonNull UUID dest) {
+	public void requestRetrieve(@NonNull EventId eventId,@NonNull UUID dest) {
 		// TODO: Da fare
 	}
 	
@@ -146,9 +146,9 @@ public class Node {
 	}
 	
 	public void scheduleGossip(double delay) {
-		Message<DummyStartGossip> msg = new Message<DummyStartGossip>(this.id, 
-																	  this.id, 
-																	  new DummyStartGossip());
+		Message<RoundStart> msg = new Message<RoundStart>(this.id, 
+														  this.id, 
+														  new RoundStart());
 		
 		this.oracle.scheduleGossip(delay, msg);
 	}
@@ -236,13 +236,13 @@ public class Node {
 						el.requestedAtRound = this.currentRound;
 					}
 				case 1: // If it's the third time ask source
-//					if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-//						this.requestRetrieve(el.event_id, el.source); // How to get the source?
-//						el.noRequests++;
-//						el.requestedAtRound = this.currentRound;
-//					}
-//					break;
-//				case 2: // If 3° time failed just fail
+					if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+						this.requestRetrieve(el.eventId, el.eventId.source); // How to get the source?
+						el.noRequests++;
+						el.requestedAtRound = this.currentRound;
+					}
+					break;
+				case 2: // If 3° time failed just fail
 					if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
 						// Packet is considered lost, log something
 					}
@@ -250,5 +250,11 @@ public class Node {
 
 			}
 		});
+	}
+	
+	public void startRound() {
+		++this.currentRound;
+		this.retrieve();
+		this.emitGossip();
 	}
 }

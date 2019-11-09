@@ -5,11 +5,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 // Standard libraries
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -22,7 +18,7 @@ import repast.simphony.util.ContextUtils;
 
 // Custom libraries
 import dsProj1.msg.Message;
-import dsProj1.msg.data.DummyStartGossip;
+import dsProj1.msg.data.RoundStart;
 import dsProj1.msg.data.Event;
 import dsProj1.msg.data.Gossip;
 
@@ -47,9 +43,9 @@ public class Oracle {
 		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, msg));
 	}
 	
-	public void scheduleGossip(double in, @NonNull Message<DummyStartGossip> dg) {
+	public void scheduleGossip(double delay, @NonNull Message<RoundStart> dg) {
 		// TODO: Add clock drift?
-		double delayTo = normalCut(in, in*Options.DRIFT_PER_SECOND);
+		double delayTo = normalCut(delay, delay*Options.DRIFT_PER_SECOND);
 		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, dg));
 	}
 	
@@ -82,19 +78,29 @@ public class Oracle {
 			throw new Exception("Destination of message is null!");
 		}
 		
-		System.out.println(msg.timestamp*1000 + "ms - " + msg.message.data.getClass().getSimpleName() + " --- of node " + destination.id + "(" + (destination.alive?"alive":"dead") + ")");
-		System.out.println(msg.message);
+		{
+			int d = (int) (msg.timestamp/(3600*24));
+			int h = (int) ((msg.timestamp % (3600*24)) / 3600);
+			int m = (int) ((msg.timestamp % 3600) / 60);
+			int s = (int) (msg.timestamp % 60);
+			int ms = (int) ((msg.timestamp % 1)*1000);
+			double ns = ((msg.timestamp % 1)*1000) % 1;
 
+			System.out.printf("%dd%dh%dm%ds%dms%fns - %s %s\n", d, h, m, s, ms, ns, 
+														  	  	msg.message.data.getClass().getSimpleName(), 
+														  	  	msg.message);
+		}
+		
 		// If destination is dead, update the view and exit immediately (do not use any handle*)
 		if (!destination.alive) {
 			this.updateView(msg);
 			return;
 		}
 		
-		if (msg.message.data instanceof DummyStartGossip) {
-			destination.emitGossip();
+		if (msg.message.data instanceof RoundStart) {
+			destination.startRound();
 		} else if (msg.message.data instanceof Gossip) {
-			destination.handle_gossip( (Message<Gossip>) msg.message);
+			destination.handleGossip( (Message<Gossip>) msg.message);
 		} else if (msg.message.data instanceof Event) {
 			destination.handleEvent( (Event) msg.message.data);
 		} else {
