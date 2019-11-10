@@ -1,17 +1,15 @@
 package dsProj1;
 
-import java.util.UUID;
-
+//Support libraries
 import org.eclipse.jdt.annotation.NonNull;
+
+// Standard libraries
+import java.util.UUID;
 
 public class ToRetrieveEv {
 	
 	public final @NonNull EventId eventId;
 	public final @NonNull UUID sender;
-
-	// TODO: Use source
-	//@NonNull
-	//public UUID source;
 	
 	public long round;
 	

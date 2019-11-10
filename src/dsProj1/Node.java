@@ -17,9 +17,6 @@ import dsProj1.msg.data.RoundStart;
 import dsProj1.msg.data.Event;
 import dsProj1.msg.data.Gossip;
 
-// TODO: Decide when to call retrieve()
-// TODO: Decide when to change currentRound
-
 public class Node {
 	private final @NonNull Oracle oracle;
 
@@ -132,7 +129,7 @@ public class Node {
 				  });
 		
 		shuffleTrim(this.eventIds, Options.EVENT_IDS_SIZE); // TODO:  This is to optimize using timestamps
-		shuffleTrim(this.events, Options.EVENTS_SIZE);
+		shuffleTrim(this.events, Options.EVENTS_SIZE);      // Remove randomly
 	}
 	
 	public void requestRetrieve(@NonNull EventId eventId,@NonNull UUID dest) {
@@ -149,7 +146,7 @@ public class Node {
 		Message<RoundStart> msg = new Message<RoundStart>(this.id, 
 														  this.id, 
 														  new RoundStart());
-		
+
 		this.oracle.scheduleGossip(delay, msg);
 	}
 	
@@ -164,16 +161,15 @@ public class Node {
 	
 	public void handleEvent(@NonNull Event ev) {
 		// If the event was already (completely) received ignore
-		if (this.events.contains(ev))
-			return;
+		if (!this.events.contains(ev))
+			this.events.add(ev);
 		
-		this.events.add(ev);
-
 		// Deliver the event to the application
 		this.lpbDeliver(ev);
 
 		// Add the id of the event
-		this.eventIds.add(ev.eventId);
+		if (!this.eventIds.contains(ev.eventId))
+			this.eventIds.add(ev.eventId);
 	}
 	
 	public void lpbDeliver(@NonNull Event ev) {
@@ -205,7 +201,7 @@ public class Node {
 		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
 		targets.forEach(t -> this.send(t, g));
 				 
-		this.events.clear(); // TODO: DUFAQ
+		this.events.clear(); // TODO: Check if it's bettere to keep the data
 
 		// Schedule another gossip in Options.GOSSIP_INTERVAL seconds
 		this.scheduleGossip(Options.GOSSIP_INTERVAL);
@@ -214,14 +210,14 @@ public class Node {
 	public void retrieve() {
 		this.retrieveBuf.forEach((ToRetrieveEv el) -> {
 			// If it's still too early, don't worry
-			if (this.currentRound - el.round <= Options.OLD_TIME_RETRIEVE) {
-				this.retrieveBuf.remove(el);
+			if (this.currentRound - el.round <= Options.OLD_TIME_RETRIEVE)
 				return; 
-			}		
 
-			// ??
-			if (this.eventIds.contains(el.eventId))
+			// If we already received it, ignore
+			if (this.eventIds.contains(el.eventId)) {
+				this.retrieveBuf.remove(el);
 				return;
+			}
 			
 			switch((int)el.noRequests) {
 				case -1: // If is the first time this happens ask to who sent us the related gossip
