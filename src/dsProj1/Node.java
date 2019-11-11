@@ -5,11 +5,16 @@ import org.eclipse.jdt.annotation.NonNull;
 
 // Standard libraries
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 // Custom libraries
 import dsProj1.msg.Message;
@@ -33,38 +38,7 @@ public class Node {
 		this.oracle = oracle;
 	}
 	
-	// Fare diagrammi articolo + magari qualcosina
-	
-	// GOALS
-	// event notifications
-	// event notifications identifiers
-	// un-subscriptions
-	// subscriptions
-	
-	// BUFFERS
-	// view        (neibourghs)
-	// unSubs      (unsubscriptions)
-	// subs        (new subscriptions)
-	// eventIds    (ids of already received events)
-	// retrieveBuf (we put events here to be processed)
-	
-	// PHASES
-	// 1. Handle unsubscriptions
-	//    1.1 remove unsubs from view
-	//    1.2 size-limit unsubs (randomly)
-	// 2. Handle subscriptions+
-	//    2.1 add subscriptions to view (pay attention to duplicates)
-	//    2.2 limit view (randomly)
-	//    2.3 limit subscription (randomly)
-	// 3. Handle deliveries
-	//    3.1 Remove deliveries that we already processed (should not be in eventIds)
-	//    3.2 Put new deliveries in retrieveBuf
-	
-	// THINGS
-	// - Every T generate gossip message to gossip to F random other processes
-	
-	// For each el in retrieveBuf, check if we have waited enough (k rounds) before fetching data (from who told me about the event)
-	// Then if during waiting period the event notification was received in a subsequent gossip message. If not ask for event notification
+	// TODO: Fare diagrammi articolo + magari qualcosina
 	
 	@NonNull List<@NonNull UUID> view = new ArrayList<@NonNull UUID>(2*Options.VIEWS_SIZE);              					   // Individual view // TODO: Fix permission(package -> private)
 	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>(2*Options.UN_SUBS_SIZE);          			   // Un-subscriptions
@@ -81,7 +55,7 @@ public class Node {
 	private long currentRound = 1;
 
 	
-	static void shuffleTrim(@NonNull List<?> l, int dim) {
+	public static void shuffleTrim(@NonNull List<?> l, int dim) {
 		if (l.size() <= dim) 
 			return;
 		
@@ -89,17 +63,63 @@ public class Node {
 		l.subList(dim, l.size()).clear();			
 	}
 	
+	private void trimEventIds() {
+		shuffleTrim(this.eventIds, Options.EVENT_IDS_SIZE); // TODO:  This is to optimize using timestamps	
+	}
+	
+	private void trimEvents() {
+		if (this.events.size() <= Options.EVENTS_SIZE) 
+			return;
+
+		Map<UUID, ArrayList<Event>> sourceToIds = this.events.stream().collect(Collectors.groupingBy(
+				(Event e) -> e.eventId.source, Collectors.toCollection(ArrayList::new)
+		));
+
+		sourceToIds.forEach( (UUID id, ArrayList<Event> evs) -> {
+			evs.sort(Comparator.comparing((Event e) -> e.eventId.id));
+		});
+		
+		ArrayList<ArrayList<Event>> groupedList = sourceToIds.values().stream().collect(Collectors.toCollection(ArrayList::new));
+
+		int l = this.events.size() - Options.EVENTS_SIZE;
+		for (int i = 0; l>0; ++i) { // Remove uniformly // TODO: Check if this policy is fine
+			ArrayList<Event> k = groupedList.get(i % groupedList.size());
+			
+			if (k.size() > 1) {
+				Event first = k.get(0);
+				Event last = k.get(k.size()-1);
+
+				if (first.eventId.id - last.eventId.id > Options.LONG_AGO) {
+					k.remove(k.size()-1);
+					--l;
+				}
+			}
+		}
+		
+		// Now that we removed the out-of-date items we can just get the first Options.EVENTS_SIZE with the smallest age
+		this.events.clear();
+		sourceToIds.values().stream()
+				   			.flatMap(k -> k.stream())
+				   			.sorted(Comparator.comparing( (Event e) -> e.age))
+				   			.limit(Options.EVENTS_SIZE)
+				   			.forEach(this.events::add);
+		
+		// THIS IS BEFORE OPTIMIZATION
+		// If there are still too many events remove randomly
+		// shuffleTrim(this.events, Options.EVENTS_SIZE);
+	}
+	
 	public void handleGossip(@NonNull Message<Gossip> g) {
 		// PHASE 1: UPDATE VIEW AND UNSUBS
-		view.removeAll(g.data.unSubs); // Remove all gossip unsubs from global view
-		subs.removeAll(g.data.unSubs); // Remove all gossip unsubs from global subs
+		this.view.removeAll(g.data.unSubs); // Remove all gossip unsubs from global view
+		this.subs.removeAll(g.data.unSubs); // Remove all gossip unsubs from global subs
 		
 		g.data.unSubs.stream()
-				     .filter((UUID it) -> !unSubs.contains(it)) // Remove already contained
-				     .forEach(unSubs::add);     				// Add unsubs from gossip to local unsubs
+				     .filter((UUID it) -> !this.unSubs.contains(it)) // Remove already contained
+				     .forEach(this.unSubs::add);     				 // Add unsubs from gossip to local unsubs
 				
 		// Randomly select UN_SUBS_SIZE values from unsub, this is the new unsubs		
-		shuffleTrim(unSubs, Options.UN_SUBS_SIZE);
+		shuffleTrim(this.unSubs, Options.UN_SUBS_SIZE);
 		
 		// PHASE 2: ADD NEW SUBSCRIPTIONS
 		g.data.subs.stream() // TODO: Check variables
@@ -120,28 +140,31 @@ public class Node {
 		shuffleTrim(this.subs, Options.SUBS_SIZE);
 		
 		// PHASE 3: UPDATE EVENTS WITH NEW NOTIFICATIONS
-		g.data.events.forEach(this::handleEvent); // Handle all new events
+		g.data.events
+			  .forEach(this::handleEvent); // Handle all new events
 		
-		g.data.eventIds.stream()
-				  .filter( (EventId it) -> !this.eventIds.contains(it) )
-				  .forEach( (EventId it) -> {
-					  retrieveBuf.add(new ToRetrieveEv(it, currentRound, g.source));
-				  });
-		
-		shuffleTrim(this.eventIds, Options.EVENT_IDS_SIZE); // TODO:  This is to optimize using timestamps
-		shuffleTrim(this.events, Options.EVENTS_SIZE);      // Remove randomly
+		g.data.eventIds
+		 	  .stream()
+		 	  .filter( (EventId it) -> !this.eventIds.contains(it) )
+			  .forEach( (EventId it) -> {
+				  this.retrieveBuf.add(new ToRetrieveEv(it, this.currentRound, g.source));
+			  });
+
+		// Fix size of EVENT_IDS
+		this.trimEventIds();
+		this.trimEvents();
 	}
-	
+
 	public void requestRetrieve(@NonNull EventId eventId,@NonNull UUID dest) {
 		// TODO: Da fare
 	}
-	
+
 	public void send(@NonNull UUID destination, @NonNull Object data) {
 		Message<Object> msg = new Message<Object>(this.id, destination, data);
 
 		this.oracle.send(msg);
 	}
-	
+
 	public void scheduleGossip(double delay) {
 		Message<RoundStart> msg = new Message<RoundStart>(this.id, 
 														  this.id, 
@@ -154,16 +177,16 @@ public class Node {
 		// If the event was already (completely/in full) received ignore
 		if (this.events.contains(e))
 			return;
-		
+
 		// Otherwise, add
 		this.events.add(e);
 	}
-	
+
 	public void handleEvent(@NonNull Event ev) {
 		// If the event was already (completely) received ignore
 		if (!this.events.contains(ev))
 			this.events.add(ev);
-		
+
 		// Deliver the event to the application
 		this.lpbDeliver(ev);
 
@@ -171,7 +194,7 @@ public class Node {
 		if (!this.eventIds.contains(ev.eventId))
 			this.eventIds.add(ev.eventId);
 	}
-	
+
 	public void lpbDeliver(@NonNull Event ev) {
 		// TODO: Da fare, cambia come virtuale puro, da fare override
 		// (this is an application override)
@@ -201,7 +224,7 @@ public class Node {
 		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
 		targets.forEach(t -> this.send(t, g));
 				 
-		this.events.clear(); // TODO: Check if it's bettere to keep the data
+		this.events.clear();
 
 		// Schedule another gossip in Options.GOSSIP_INTERVAL seconds
 		this.scheduleGossip(Options.GOSSIP_INTERVAL);
@@ -219,7 +242,7 @@ public class Node {
 				return;
 			}
 			
-			switch((int)el.noRequests) {
+			switch(el.noRequests) {
 				case -1: // If is the first time this happens ask to who sent us the related gossip
 					this.requestRetrieve(el.eventId, el.sender);
 					el.noRequests++;
@@ -243,13 +266,13 @@ public class Node {
 						// Packet is considered lost, log something
 					}
 					break;
-
 			}
 		});
 	}
 	
 	public void startRound() {
 		++this.currentRound;
+		this.events.forEach(e -> ++e.age);
 		this.retrieve();
 		this.emitGossip();
 	}

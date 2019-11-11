@@ -12,9 +12,10 @@ import dsProj1.EventId;
 public class Event<T> {
 	public final @NonNull EventId eventId;
 	public final @NonNull T data;
+	public long age = 0;
 	
-	public Event(@NonNull UUID source, @NonNull T data) {
-		this.eventId = new EventId(source);
+	public Event(@NonNull UUID source, long id, @NonNull T data) {
+		this.eventId = new EventId(source, id);
 		this.data = data;
 	}
 	

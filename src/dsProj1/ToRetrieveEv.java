@@ -13,7 +13,7 @@ public class ToRetrieveEv {
 	
 	public long round;
 	
-	public long noRequests = 0;
+	public int noRequests = 0;
 	public long requestedAtRound = -1;
 	
 	public ToRetrieveEv(@NonNull EventId eventId, long round, @NonNull UUID sender) {

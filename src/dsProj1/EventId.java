@@ -7,11 +7,11 @@ import org.eclipse.jdt.annotation.NonNull;
 import java.util.UUID;
 
 public class EventId {
-	public final @NonNull UUID id;
+	public final long id; // This is is incremental (can be so as the increment is local to the source)
 	public final @NonNull UUID source;
 	
-	public EventId(@NonNull UUID source) {
-		this.id = UUID.randomUUID();
+	public EventId(@NonNull UUID source, long id) {
+		this.id = id;
 		this.source = source;
 	}
 	
@@ -27,6 +27,6 @@ public class EventId {
 		
 		EventId other = (EventId) obj;
 		
-		return this.source.equals(other.source) && this.id.equals(other.id);
+		return this.source.equals(other.source) && this.id == other.id;
 	}
 }

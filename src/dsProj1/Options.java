@@ -19,7 +19,7 @@ public interface Options {
 	
 	static final double GOSSIP_INTERVAL = 30;
 	static final double DRIFT_PER_SECOND = 1e-6;
-	
+	static final long LONG_AGO = 3;
 	
 	static final int NODE_COUNT = 35;
 }
