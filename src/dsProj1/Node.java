@@ -109,7 +109,19 @@ public class Node {
 		// shuffleTrim(this.events, Options.EVENTS_SIZE);
 	}
 	
-	public void handleGossip(@NonNull Message<Gossip> g) {
+	public void handleMessage(Message msg) throws Exception {
+		if (msg.data instanceof RoundStart) {
+			this.startRound();
+		} else if (msg.data instanceof Gossip) {
+			this.handleGossip(msg);
+		} else if (msg.data instanceof Event) {
+			this.handleEvent((Event)msg.data);
+		} else {
+			throw new Exception("Unrecognized type of message!");
+		}
+	}
+	
+	private void handleGossip(@NonNull Message<Gossip> g) {
 		// PHASE 1: UPDATE VIEW AND UNSUBS
 		this.view.removeAll(g.data.unSubs); // Remove all gossip unsubs from global view
 		this.subs.removeAll(g.data.unSubs); // Remove all gossip unsubs from global subs
@@ -155,25 +167,19 @@ public class Node {
 		this.trimEvents();
 	}
 
-	public void requestRetrieve(@NonNull EventId eventId,@NonNull UUID dest) {
+	private void requestRetrieve(@NonNull EventId eventId,@NonNull UUID dest) {
 		// TODO: Da fare
 	}
 
-	public void send(@NonNull UUID destination, @NonNull Object data) {
-		Message<Object> msg = new Message<Object>(this.id, destination, data);
-
-		this.oracle.send(msg);
+	private void send(@NonNull UUID destination, @NonNull Object data) {
+		this.oracle.send(new Message<>(this.id, destination, data));
 	}
 
-	public void scheduleGossip(double delay) {
-		Message<RoundStart> msg = new Message<RoundStart>(this.id, 
-														  this.id, 
-														  new RoundStart());
-
-		this.oracle.scheduleGossip(delay, msg);
+	private void scheduleGossip(double delay) {
+		this.oracle.scheduleGossip(delay, new Message<RoundStart>(this.id, this.id, new RoundStart()));
 	}
 	
-	public void lpbCast(@NonNull Event e) { // TODO: To integrate in some way with sending
+	private void lpbCast(@NonNull Event e) { // TODO: To integrate in some way with sending
 		// If the event was already (completely/in full) received ignore
 		if (this.events.contains(e))
 			return;
@@ -182,7 +188,7 @@ public class Node {
 		this.events.add(e);
 	}
 
-	public void handleEvent(@NonNull Event ev) {
+	private void handleEvent(@NonNull Event ev) {
 		// If the event was already (completely) received ignore
 		if (!this.events.contains(ev))
 			this.events.add(ev);
@@ -195,16 +201,16 @@ public class Node {
 			this.eventIds.add(ev.eventId);
 	}
 
-	public void lpbDeliver(@NonNull Event ev) {
+	private void lpbDeliver(@NonNull Event ev) {
 		// TODO: Da fare, cambia come virtuale puro, da fare override
 		// (this is an application override)
 	}
 
-	public void emitGossip() {
+	private void emitGossip() {
 		Random rand = new Random();
 			
 		// Select FANOUT_SIZE targets to which send the gossip
-		List<UUID> targets = new ArrayList<UUID>(Options.FANOUT_SIZE);
+		List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
 		while (targets.size() < Options.FANOUT_SIZE) {
 			UUID w = this.view.get(rand.nextInt(this.view.size()));
 			
@@ -214,7 +220,7 @@ public class Node {
 		}
 
 		// Add ourselves to the subs list (if there is enough space just add, otherwise substitute at random)
-		List<UUID> s = new ArrayList<>(this.subs);
+		List<@NonNull UUID> s = new ArrayList<>(this.subs);
 		if (s.size() < Options.SUBS_SIZE)
 			s.add(this.id);
 		else 
@@ -230,7 +236,7 @@ public class Node {
 		this.scheduleGossip(Options.GOSSIP_INTERVAL);
 	}
 
-	public void retrieve() {
+	private void retrieve() {
 		this.retrieveBuf.forEach((ToRetrieveEv el) -> {
 			// If it's still too early, don't worry
 			if (this.currentRound - el.round <= Options.OLD_TIME_RETRIEVE)

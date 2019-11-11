@@ -97,16 +97,8 @@ public class Oracle {
 			return;
 		}
 		
-		if (msg.message.data instanceof RoundStart) {
-			destination.startRound();
-		} else if (msg.message.data instanceof Gossip) {
-			destination.handleGossip( (Message<Gossip>) msg.message);
-		} else if (msg.message.data instanceof Event) {
-			destination.handleEvent( (Event) msg.message.data);
-		} else {
-			throw new Exception("Unrecognized type of message!");
-		}
-		
+		destination.handleMessage(msg.message);
+				
 		this.updateView(msg);
 	}
 	
