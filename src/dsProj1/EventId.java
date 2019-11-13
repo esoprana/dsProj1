@@ -17,7 +17,7 @@ public class EventId {
 	
 	@Override
 	public String toString() {
-		return "{ source: " + this.source + ", id: " + this.id + "}";
+		return "EventId[source="+ this.source + ", id=" + this.id +"]";
 	}
 
 	@Override
@@ -26,7 +26,7 @@ public class EventId {
 			return false;
 		
 		EventId other = (EventId) obj;
-		
+
 		return this.source.equals(other.source) && this.id == other.id;
 	}
 }

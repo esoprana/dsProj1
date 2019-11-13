@@ -25,21 +25,21 @@ public class Gossip {
 			  	  @NonNull Collection<@NonNull UUID> unSubs, 
 			  	  @NonNull Collection<@NonNull EventId> eventIds, 
 			  	  @NonNull Collection<@NonNull Event> events) {
-		if (subs.size() > Options.SUBS_SIZE) {
-			throw new IllegalArgumentException("The passed subs parameter should have at max " + Options.SUBS_SIZE + "elements");
-		}
-	
-		if (unSubs.size() > Options.UN_SUBS_SIZE) {
-			throw new IllegalArgumentException("The passed unSubs parameter should have at max " + Options.UN_SUBS_SIZE + "elements");
-		}
-	
-		if (eventIds.size() > Options.EVENT_IDS_SIZE) {
-			throw new IllegalArgumentException("The passed eventIds parameter should have at max " + Options.EVENT_IDS_SIZE + "elements");
-		}
-	
-		if (events.size() > Options.EVENTS_SIZE) {
-			throw new IllegalArgumentException("The passed events parameter should have at max " + Options.EVENTS_SIZE + "elements");
-		}
+//		if (subs.size() > Options.SUBS_SIZE) {
+//			throw new IllegalArgumentException("The passed subs parameter should have at max " + Options.SUBS_SIZE + "elements");
+//		}
+//	
+//		if (unSubs.size() > Options.UN_SUBS_SIZE) {
+//			throw new IllegalArgumentException("The passed unSubs parameter should have at max " + Options.UN_SUBS_SIZE + "elements");
+//		}
+//	
+//		if (eventIds.size() > Options.EVENT_IDS_SIZE) {
+//			throw new IllegalArgumentException("The passed eventIds parameter should have at max " + Options.EVENT_IDS_SIZE + "elements");
+//		}
+//	
+//		if (events.size() > Options.EVENTS_SIZE) {
+//			throw new IllegalArgumentException("The passed events parameter should have at max " + Options.EVENTS_SIZE + "elements");
+//		}
 	
 		this.unSubs = new ArrayList<@NonNull UUID>(unSubs);
 		this.subs = new ArrayList<@NonNull UUID>(subs);
@@ -49,9 +49,6 @@ public class Gossip {
 	
 	@Override
 	public String toString() {
-		return "{ subs: " + this.subs + ",\n" +
-			   "  unSubs: " + this.unSubs + ",\n" +
-			   "  eventIds: " + this.eventIds + ",\n" +
-			   "  events: " + this.events + " }";
+		return "[subs=" + this.subs + ", unSubs=" + this.unSubs + ", eventIds=" + this.eventIds + ", events=" + this.events + "]";
 	}
 }

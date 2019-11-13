@@ -4,7 +4,7 @@ public interface Options {
 	static final int VIEWS_SIZE = 5;
 	static final int UN_SUBS_SIZE = 5;
 	static final int SUBS_SIZE = 5;
-	static final int EVENT_IDS_SIZE = 5;
+	static final int EVENT_IDS_SIZE = 20;
 	static final int RETRIEVE_SIZE = 5;
 	static final int EVENTS_SIZE = 5; // TODO: Check if needed	
 	
@@ -21,5 +21,10 @@ public interface Options {
 	static final double DRIFT_PER_SECOND = 1e-6;
 	static final long LONG_AGO = 3;
 	
-	static final int NODE_COUNT = 35;
+	static final int NODE_COUNT = 5;
+	
+	static final double TO_SECOND = 10000.;
+	static final double EVENTS_RATE = 2;
+	
+	static final double DROPPED_RATE = 0.02;
 }

@@ -21,4 +21,20 @@ public class ToRetrieveEv {
 		this.round = round;
 		this.sender = sender;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (!(obj instanceof ToRetrieveEv)) {
+			return false;
+		}
+		
+		ToRetrieveEv tev = (ToRetrieveEv) obj;
+		
+		return this.eventId.equals(tev.eventId);
+	}
+	
+	@Override
+	public String toString() {
+		return "ToRetrieveEv[eventId=" + this.eventId + ", sender=" + this.sender + "]"; // TODO: Maybe add other stuff
+	}
 }

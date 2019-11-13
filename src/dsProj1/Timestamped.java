@@ -1,18 +1,25 @@
 package dsProj1;
 
+import java.text.DecimalFormat;
+
 // Support libraries
 import org.eclipse.jdt.annotation.NonNull;
 
 // Custom libraries
 import dsProj1.msg.Message;
 
-public class Timestamped<T extends Message<?>> implements Comparable<Timestamped>{
+public class Timestamped<T extends Message> implements Comparable<Timestamped>{
 	public final double timestamp;
 	public final @NonNull T message;
 	
 	public Timestamped(double timestamp, @NonNull T message) {
 		this.timestamp = timestamp;
 		this.message = message;
+	}
+	
+	public Timestamped(Timestamped<T> t) {
+		this.timestamp = t.timestamp;
+		this.message = (@NonNull T) new Message(t.message); // TODO: Why is cast necessary? (java problem)
 	}
 	
 	@Override
@@ -23,5 +30,10 @@ public class Timestamped<T extends Message<?>> implements Comparable<Timestamped
 	    	return cmpTimestamp;
 	
 	    return this.message.compareTo(other.message);
+	}
+	
+	@Override
+	public String toString() {
+		return "Timestamped[timestamp="+ new DecimalFormat("#0.000000").format(this.timestamp) + ", message=" + this.message + "]";
 	}
 }

@@ -4,8 +4,11 @@ package dsProj1;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 // Standard libraries
 import java.util.HashMap;
+import java.util.List;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -20,17 +23,19 @@ import repast.simphony.util.ContextUtils;
 import dsProj1.msg.Message;
 import dsProj1.msg.data.RoundStart;
 import dsProj1.msg.data.Event;
+import dsProj1.msg.data.ExternalData;
 import dsProj1.msg.data.Gossip;
 
 public class Oracle {
-	public double currentSeconds = 0;
+	private double currentSeconds = 0;
+	private long nData = 0;
 	
-	public static double normal(double mean, double var) {
+	private static double normal(double mean, double var) {
 		return RandomHelper.createNormal(mean, var)
 		 				   .apply(RandomHelper.nextDoubleFromTo(0, 1));
 	}
 	
-	public static double normalCut(double mean, double var) {
+	private static double normalCut(double mean, double var) {
 		double ris = normal(mean, var);
 
 		return ris < 0?0:ris;
@@ -49,7 +54,7 @@ public class Oracle {
 		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, dg));
 	}
 	
-	public @Nullable Node getNode(@NonNull UUID id) {
+	private @Nullable Node getNode(@NonNull UUID id) {
 		Context context = ContextUtils.getContext(this);
 		for(Object o : context.getObjects(Node.class)) {
 			Node n = (Node) o;
@@ -61,6 +66,10 @@ public class Oracle {
 		return null;
 	}
 	
+	private void logMessage(Timestamped<Message<?>> msg) {
+		System.out.println(msg);
+	}
+	
 	@ScheduledMethod(start = 1, interval = 1)
 	public void step() throws Exception {
 		@Nullable Timestamped<Message<?>> msg = messages.pollFirst();
@@ -68,6 +77,9 @@ public class Oracle {
 		// If nothing is scheduled something bad happened (there should be at least some periodic event)
 		if(msg == null)
 			throw new Exception("No more messages/events!");
+		
+		// From now on use copy (messages could be changed by node)	
+		msg = new Timestamped<Message<?>>(msg);
 		
 		this.currentSeconds = msg.timestamp;
 
@@ -77,27 +89,22 @@ public class Oracle {
 		if (destination == null) {
 			throw new Exception("Destination of message is null!");
 		}
-		
-		{
-			int d = (int) (msg.timestamp/(3600*24));
-			int h = (int) ((msg.timestamp % (3600*24)) / 3600);
-			int m = (int) ((msg.timestamp % 3600) / 60);
-			int s = (int) (msg.timestamp % 60);
-			int ms = (int) ((msg.timestamp % 1)*1000);
-			double ns = ((msg.timestamp % 1)*1000) % 1;
 
-			System.out.printf("%dd%dh%dm%ds%dms%fns - %s %s\n", d, h, m, s, ms, ns, 
-														  	  	msg.message.data.getClass().getSimpleName(), 
-														  	  	msg.message);
-		}
+		this.logMessage(msg);
 		
-		// If destination is dead, update the view and exit immediately (do not use any handle*)
+		boolean toBeReceived = true;
+		
+		// If destination is dead, update the view and exit immediately (do not use any handle)
 		if (!destination.alive) {
-			this.updateView(msg);
-			return;
+			toBeReceived = false;
+		}
+
+		if (RandomHelper.nextDouble() <= Options.DROPPED_RATE) {
+			toBeReceived = false;
 		}
 		
-		destination.handleMessage(msg.message);
+		if(toBeReceived)
+			destination.handleMessage(msg.message);
 				
 		this.updateView(msg);
 	}
@@ -119,8 +126,8 @@ public class Oracle {
 		// Get networks
 		Context context = ContextUtils.getContext(this);
 	
-		Network networkView = (Network) context.getProjection("view");
-		Network networkMessage = (Network) context.getProjection("message");
+		Network<Node> networkView = (Network<Node>) context.getProjection("view");
+		Network<Node> networkMessage = (Network<Node>) context.getProjection("message");
 
 		// Remove old edges
 		networkView.removeEdges();
@@ -141,5 +148,28 @@ public class Oracle {
 		
 		// - Message network
 		networkMessage.addEdge(source, destination);
+	}
+
+	public void init(Context ctx) {
+		cern.jet.random.Uniform u = RandomHelper.createUniform(0, Options.TO_SECOND);
+
+		List<Node> nodes = new ArrayList<Node>(Options.NODE_COUNT);
+		for (Object o : ctx.getObjects(Node.class)) {
+			nodes.add((Node)o);
+		}
+
+		long tot_events = (long) (Options.TO_SECOND * Options.EVENTS_RATE);
+		ArrayList<Double> exData = new ArrayList<Double>((int) tot_events);
+
+		for (int i=0; i<tot_events; ++i) {
+			exData.add(u.nextDoubleFromTo(0, Options.TO_SECOND)+1);
+		}
+		
+		exData.stream().sorted().map((Double t) -> {
+			Node n = nodes.get(RandomHelper.nextIntFromTo(0, nodes.size()-1));
+			Message msg = new Message<ExternalData<?>>(n.id, n.id, new ExternalData<>(++this.nData));
+			
+			return new Timestamped(t, msg);
+		}).forEach(this.messages::add);
 	}
 }

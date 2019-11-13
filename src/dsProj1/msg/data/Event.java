@@ -21,7 +21,7 @@ public class Event<T> {
 	
 	@Override
 	public String toString() {
-		return "{ eventId: " + this.eventId + " }";
+		return "Event[eventId=" + this.eventId + ", data=" + this.data +"]";
 	}
 	
 	@Override

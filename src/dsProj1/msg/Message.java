@@ -22,11 +22,16 @@ public class Message<T extends Object> implements Comparable<Message> {
 		this.messageId = UUID.randomUUID();
 	}
 	
+	public Message(@NonNull Message<T> m) {
+		this.source = m.source;
+		this.destination = m.destination;
+		this.data = m.data; // We consider this a copy, check better
+		this.messageId = m.messageId;
+	}
+	
 	@Override
 	public String toString() {
-		return "{ source: " + this.source + ",\n" +
-			   "  destination: " + this.destination + ",\n" + 
-			   "  data: " + this.data.toString() + " }";
+		return "Message[source=" + this.source + ", destination=" + this.destination +", data=" + this.data +"]";
 	}
 	
 	@Override

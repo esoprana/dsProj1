@@ -66,6 +66,8 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			// Schedule its first gossip // TODO: Change timings (maybe random or something)
 			oracle.scheduleGossip(0, new Message<>(n.id, n.id, new RoundStart()));
 		}
+		
+		oracle.init(context);
 
 		NetworkBuilder viewBuilder = new NetworkBuilder("view", context, true);
 		viewBuilder.buildNetwork();
