@@ -49,6 +49,6 @@ public class Gossip {
 	
 	@Override
 	public String toString() {
-		return "[subs=" + this.subs + ", unSubs=" + this.unSubs + ", eventIds=" + this.eventIds + ", events=" + this.events + "]";
+		return "Gossip[subs=" + this.subs + ", unSubs=" + this.unSubs + ", eventIds=" + this.eventIds + ", events=" + this.events + "]";
 	}
 }

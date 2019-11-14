@@ -1,6 +1,7 @@
 package dsProj1;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 
 // Support libraries
 import org.eclipse.jdt.annotation.NonNull;
@@ -34,6 +35,10 @@ public class Timestamped<T extends Message> implements Comparable<Timestamped>{
 	
 	@Override
 	public String toString() {
-		return "Timestamped[timestamp="+ new DecimalFormat("#0.000000").format(this.timestamp) + ", message=" + this.message + "]";
+		DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+		symbols.setDecimalSeparator('.');
+		
+		DecimalFormat fmt = new DecimalFormat("#0.000000", symbols);
+		return "Timestamped[timestamp="+ fmt.format(this.timestamp) + ", message=" + this.message + "]";
 	}
 }

@@ -79,12 +79,20 @@ public class Oracle {
 		return null;
 	}
 	
-	private void logMessage(Timestamped<Message<?>> msg) {
-		System.out.println(msg);
+	public String currentTask() {
+		@Nullable Timestamped<Message<?>> msg = this.messages.first();
+		
+		if (msg == null)
+			return "";
+		
+		return msg.toString();
 	}
 	
 	@ScheduledMethod(start = 1, interval = 1)
 	public void step() throws Exception {
+		// Print what you are about to do (debugging purposes)
+		//System.out.println(this.currentTask());
+		
 		@Nullable Timestamped<Message<?>> msg = messages.pollFirst();
 		
 		// If nothing is scheduled something bad happened (there should be at least some periodic event)
@@ -105,8 +113,6 @@ public class Oracle {
 		} else if (sender == null) {
 			throw new Exception("Source of message is null!");
 		}
-
-		this.logMessage(msg);
 		
 		boolean toBeReceived = true;
 		
