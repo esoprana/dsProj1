@@ -13,7 +13,7 @@ public class ToRetrieveEv {
 	
 	public long round;
 	
-	public int noRequests = 0;
+	public int noRequests = -1;
 	public long requestedAtRound = -1;
 	
 	public ToRetrieveEv(@NonNull EventId eventId, long round, @NonNull UUID sender) {
@@ -35,6 +35,6 @@ public class ToRetrieveEv {
 	
 	@Override
 	public String toString() {
-		return "ToRetrieveEv[eventId=" + this.eventId + ", sender=" + this.sender + "]"; // TODO: Maybe add other stuff
+		return "ToRetrieveEv[eventId=" + this.eventId + ", sender=" + this.sender + ", round=" + this.round + ", noRequests=" + this.noRequests + ", requestedAtRound=" + this.requestedAtRound +"]"; // TODO: Maybe add other stuff
 	}
 }

@@ -62,9 +62,6 @@ public class NodeBuilder implements ContextBuilder<Object> {
 							  nodes_uuid_copy.subList(0, Options.VIEWS_SIZE), // copy is done on Node's side
 							  oracle);
 			context.add(n);
-
-			// Schedule its first gossip // TODO: Change timings (maybe random or something)
-			oracle.scheduleGossip(0, new Message<>(n.id, n.id, new RoundStart()));
 		}
 		
 		oracle.init(context);

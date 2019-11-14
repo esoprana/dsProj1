@@ -10,15 +10,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 // Custom libraries
 import dsProj1.msg.Message;
 import dsProj1.msg.data.RoundStart;
+import repast.simphony.random.RandomHelper;
 import dsProj1.msg.data.Event;
 import dsProj1.msg.data.ExternalData;
 import dsProj1.msg.data.Gossip;
@@ -64,6 +67,42 @@ public class Node {
 		l.subList(dim, l.size()).clear();			
 	}
 	
+	private boolean alreadySeenEventId(EventId eId) {
+		if (this.eventIds.contains(eId)) {
+			return true;
+		}
+
+		Optional<EventId> min = this.eventIds.stream()
+					 						 .filter( id -> id.source == eId.source)
+					 						 .min( Comparator.comparing(id -> id.id) );
+
+		return min.isPresent() && eId.id < min.get().id;
+	}
+	
+	private void addEventId(EventId eId) {
+		// Find last id received in sequence from eId.soruce
+		Optional<EventId> min = this.eventIds.stream()
+				 							 .filter( id -> id.source == eId.source)
+				 							 .min( Comparator.comparing(id -> id.id) );
+
+		if (!min.isPresent() || min.get().id != eId.id-1) {
+			this.eventIds.add(eId);
+			return;
+		}
+		
+		final long newId;
+		
+		{
+			long toSearchId = eId.id+1;
+			for(;this.eventIds.contains(new EventId(eId.source, toSearchId));++toSearchId);
+
+			newId = toSearchId - 1;
+		}
+		
+		this.eventIds.removeIf(id -> eId.source.equals(id.source) && id.id <= newId);
+		this.eventIds.add(new EventId(eId.source, newId)); // -1 as newId contains the last one which was not found
+	}
+	
 	private void trimEventIds() {
 		if (this.eventIds.size() <= Options.EVENT_IDS_SIZE) 
 			return;
@@ -74,35 +113,67 @@ public class Node {
 
 		ArrayList<List<EventId>> groupedList = sourceToIds.values().stream().map((ArrayList<EventId> evs) -> {
 			evs.sort(Comparator.comparing((EventId e) -> -e.id));
-			long lim = evs.get(0).id - Options.LONG_AGO;
-			int b = 0;
-			for (;b<evs.size(); ++b) {
-				if (evs.get(b).id < lim) {
-					break;
-				}
-			}
-			
-			return evs.subList(b, evs.size());
+			return evs;
 		}).collect(Collectors.toCollection(ArrayList::new));
+		
+		int l = this.eventIds.size() - Options.EVENT_IDS_SIZE;
+		for (; l>0;) { // Remove uniformly // TODO: Check if this policy is fine
+			Optional<List<EventId>> k = groupedList.stream()
+										.map(w -> {
+											int b = 0;
+											for (;b<w.size() && w.get(0).id - w.get(b).id > Options.LONG_AGO;++b);
+											
+											return w.subList(b, w.size());
+										})
+									   .filter(w -> w.size() > 0)
+					   				   .max(Comparator.comparing(w -> w.size()));
+			
+			// No remaining sublist from which to remove (groupList is empty or all list have w.get(0).eventId.id - w.get(w.size()-1).eventId.id > Options.LONG_AGO)
+			if (!k.isPresent()) 
+				break;
+			
+			List<EventId> evs = k.get();
+			evs.remove(evs.size()-1);
+			--l;
+			
+			while (l > 0 && evs.size() > 1 && evs.get(evs.size()-2).id+1 == evs.get(evs.size()-1).id) {
+				evs.remove(evs.size()-1);
+				--l;
+			}
+		}
 
+		/*
 		int l = this.eventIds.size() - Options.EVENT_IDS_SIZE;
 		for (int i = 0; l>0 && !groupedList.isEmpty();) { // Remove uniformly // TODO: Check if this policy is fine
 			List<EventId> k = groupedList.get(i % groupedList.size());
 			
-			if (k.size() == 0) {
+			if (k.size() == 0 || k.get(0).id - k.get(k.size()-1).id > Options.LONG_AGO) {
 				groupedList.remove(i % groupedList.size());
 			} else {
 				k.remove(k.size()-1);
-				--l;				
+				--l;
+				
+				for (int w=1; w<k.size()-1 && 
+							  k.get(0).id - k.get(k.size()-1).id > Options.LONG_AGO && 
+							  k.get(k.size()-w).id +1 == k.get(k.size()-w-1).id ; w++) {
+					k.remove(w);
+				}
+				
 				++i;
 			}
 		}
+		*/
 		
 		this.eventIds.clear();
-		sourceToIds.values().stream().flatMap(k -> k.stream()).forEach(this.eventIds::add);
+		sourceToIds.values().stream().flatMap(k -> k.stream()).forEach(this::addEventId);
 		
 		// If more elements remain delete
 		shuffleTrim(this.eventIds, Options.EVENT_IDS_SIZE);
+		
+		// Once some were deleted randomly, ensure that last element is cumulative holds
+		ArrayList<EventId> eIds = new ArrayList<EventId>(this.eventIds);
+		this.eventIds.clear();
+		eIds.forEach(this::addEventId);
 	}
 	
 	private void trimEvents() {
@@ -115,28 +186,53 @@ public class Node {
 		
 		ArrayList<List<Event>> groupedList = sourceToIds.values().stream().map((ArrayList<Event> evs) -> {
 			evs.sort(Comparator.comparing((Event e) -> -e.eventId.id));
-			long lim = evs.get(0).eventId.id - Options.LONG_AGO;
-			int b = 0;
-			for (;b<evs.size(); ++b) {
-				if (lim > evs.get(b).eventId.id) {
-					break;
-				}
-			}
-			
-			return evs.subList(b, evs.size());
+			return evs;
 		}).collect(Collectors.toCollection(ArrayList::new));
 		
-
+		/*
 		int l = this.events.size() - Options.EVENTS_SIZE;
 		for (int i = 0; l>0 && !groupedList.isEmpty();) { // Remove uniformly // TODO: Check if this policy is fine
 			List<Event> k = groupedList.get(i % groupedList.size());
 			
-			if (k.size() == 0) {
+			if (k.size() == 0 || k.get(0).eventId.id - k.get(k.size()-1).eventId.id > Options.LONG_AGO) {
 				groupedList.remove(i % groupedList.size());
 			} else {
 				k.remove(k.size()-1);
-				--l;				
+				--l;
+				
+				while (l > 0 && k.size() > 1 && k.get(0).eventId.id - k.get(k.size()-1).eventId.id > Options.LONG_AGO && k.get(k.size()-2).eventId.id+1 == k.get(k.size()-1).eventId.id) {
+					k.remove(k.size()-1);
+					--l;
+				}
+
 				++i;
+			}
+		}
+		*/
+		
+		int l = this.events.size() - Options.EVENTS_SIZE;
+		for (; l>0;) { // Remove uniformly // TODO: Check if this policy is fine
+			Optional<List<Event>> k = groupedList.stream()
+										.map(w -> {
+											int b = 0;
+											for (;b<w.size() && w.get(0).eventId.id - w.get(b).eventId.id > Options.LONG_AGO;++b);
+											
+											return w.subList(b, w.size());
+										})
+									   .filter(w -> w.size() > 0)
+					   				   .max(Comparator.comparing(w -> w.size()));
+			
+			// No remaining sublist from which to remove (groupList is empty or all list have w.get(0).eventId.id - w.get(w.size()-1).eventId.id > Options.LONG_AGO)
+			if (!k.isPresent()) 
+				break;
+			
+			List<Event> evs = k.get();
+			evs.remove(evs.size()-1);
+			--l;
+			
+			while (l > 0 && evs.size() > 1 && evs.get(evs.size()-2).eventId.id+1 == evs.get(evs.size()-1).eventId.id) {
+				evs.remove(evs.size()-1);
+				--l;
 			}
 		}
 		
@@ -205,7 +301,7 @@ public class Node {
 		
 		g.data.eventIds
 		 	  .stream()
-		 	  .filter( (EventId it) -> !this.eventIds.contains(it) )
+		 	  .filter( (EventId it) -> !this.alreadySeenEventId(it))
 		 	  .map( (EventId it) -> new ToRetrieveEv(it, this.currentRound, g.source))
 			  .forEach( k -> {
 				  if (this.retrieveBuf.contains(k))
@@ -213,6 +309,31 @@ public class Node {
 				  
 				  this.retrieveBuf.add(k);
 			  });
+				
+//		Map<UUID, Optional<@NonNull EventId>> evs = this.eventIds.stream()
+//					 											 .collect(
+//					 													Collectors.groupingBy( (EventId e) -> e.source,		 
+//					 													Collectors.minBy( Comparator.comparing((EventId e) -> e.id) )));
+//		
+//		g.data.eventIds.stream()
+//					   .collect(Collectors.groupingBy((EventId e) -> e.source, Collectors.minBy( Comparator.comparing((EventId e) -> e.id)  )))
+//					   .values()
+//					   .stream()
+//					   .forEach( (Optional<EventId> oEv) -> {
+//						   EventId ev = oEv.get();
+//						   
+//						   if (evs.containsKey(ev.source)) {
+//							   EventId toComp = evs.get(ev.source).get();
+//							   
+//							   for(long i = ev.id-1; i > toComp.id; --i) {
+//								   ToRetrieveEv toRetrieveEv = new ToRetrieveEv(new EventId(ev.source, i), this.currentRound, g.source);
+//								   
+//								   if (!this.retrieveBuf.contains(toRetrieveEv)) {
+//									   this.retrieveBuf.add(toRetrieveEv);								   
+//								   }
+//							   }
+//						   }
+//					   });
 
 		// Fix size of EVENT_IDS
 		this.trimEventIds();
@@ -221,7 +342,6 @@ public class Node {
 
 	private void requestRetrieve(@NonNull EventId eventId, @NonNull UUID dest) {
 		RetrieveMessage rm = new RetrieveMessage(eventId);
-		System.out.println(rm);
 		this.send(dest, rm);
 	}
 
@@ -233,7 +353,7 @@ public class Node {
 		this.oracle.scheduleGossip(delay, new Message<RoundStart>(this.id, this.id, new RoundStart()));
 	}
 	
-	private void lpbCast(@NonNull Event e) { // TODO: To integrate in some way with sending
+	public void lpbCast(@NonNull Event e) { // TODO: To integrate in some way with sending
 		// If the event was already (completely/in full) received ignore
 		if (this.events.contains(e))
 			return;
@@ -244,7 +364,7 @@ public class Node {
 
 	private void handleEvent(@NonNull Event ev) {
 		// If the event was already (completely) received ignore
-		if (this.eventIds.contains(ev.eventId))
+		if (this.alreadySeenEventId(ev.eventId))
 			return;
 
 		this.events.add(ev);
@@ -253,7 +373,16 @@ public class Node {
 		this.lpbDeliver(ev);
 
 		// Add the id of the event
-		this.eventIds.add(ev.eventId);
+		this.addEventId(ev.eventId);
+		
+		Iterator<ToRetrieveEv> it = this.retrieveBuf.iterator();
+		while(it.hasNext()) {
+			ToRetrieveEv tre = it.next();
+			if (tre.eventId.equals(ev.eventId)) {
+				it.remove();
+				return;
+			}
+		}
 	}
 	
 	private void handleRetrieve(Message<RetrieveMessage> rm) throws Exception {
@@ -262,6 +391,7 @@ public class Node {
 			Event e = it.next();
 			
 			if (e.eventId.equals(rm.data.eventIdRequested)) {
+				System.err.println("FOUND!!!");
 				this.send(rm.source, e);
 				return;
 			}
@@ -271,16 +401,16 @@ public class Node {
 	}
 
 	private void lpbDeliver(@NonNull Event ev) {
+		this.oracle.stat(this.id, ev);
 		//System.out.println("Node[" + this.id + "] received Event[" + ev.data + "]");
 	}
 
 	private void emitGossip() {
-		Random rand = new Random();
-			
 		// Select FANOUT_SIZE targets to which send the gossip
 		List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
 		while (targets.size() < Options.FANOUT_SIZE) {
-			UUID w = this.view.get(rand.nextInt(this.view.size()));
+			
+			UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1));
 			
 			if (!targets.contains(w)) {
 				targets.add(w);
@@ -292,7 +422,7 @@ public class Node {
 		if (s.size() < Options.SUBS_SIZE)
 			s.add(this.id);
 		else 
-			s.set(rand.nextInt(this.subs.size()), this.id);
+			s.set(RandomHelper.nextIntFromTo(0, this.view.size()-1), this.id);
 		
 		// Create the gossip and sent it
 		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
@@ -313,7 +443,6 @@ public class Node {
 			if (this.currentRound - el.round <= Options.OLD_TIME_RETRIEVE) {
 				// If it's still too early, don't worry
 			} else if (this.eventIds.contains(el.eventId)) {
-				// If we already received it, remove it
 				it.remove();
 			} else {
 				switch(el.noRequests) {
@@ -324,7 +453,7 @@ public class Node {
 						break;
 					case 0: // If it's the second time ask to a random node
 						if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							this.requestRetrieve(el.eventId, this.view.get(new Random().nextInt(this.view.size())));
+							this.requestRetrieve(el.eventId, this.view.get( RandomHelper.nextIntFromTo(0, this.view.size()-1) ));
 							el.noRequests++;
 							el.requestedAtRound = this.currentRound;
 						}
@@ -338,6 +467,7 @@ public class Node {
 					case 2: // If 3° time failed just fail
 						if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
 							// Packet is considered lost, log something
+							System.err.println("FAILURE!");
 						}
 						break;
 				}
@@ -348,7 +478,7 @@ public class Node {
 	public void startRound() {
 		++this.currentRound;
 		this.events.forEach(e -> ++e.age);
-		this.retrieve();
 		this.emitGossip();
+		this.retrieve();
 	}
 }

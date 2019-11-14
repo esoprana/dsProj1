@@ -25,10 +25,23 @@ import dsProj1.msg.data.RoundStart;
 import dsProj1.msg.data.Event;
 import dsProj1.msg.data.ExternalData;
 import dsProj1.msg.data.Gossip;
+import dsProj1.msg.data.RetrieveMessage;
 
 public class Oracle {
 	private double currentSeconds = 0;
 	private long nData = 0;
+	
+	private HashMap<UUID, HashMap<Long, Long>> received = new HashMap<>();
+	
+	public void stat(UUID node, Event ev) {
+		received.putIfAbsent(node, new HashMap<>());
+		
+		HashMap<Long, Long> mapOfNode = received.get(node);
+		mapOfNode.putIfAbsent((Long) ev.data, 0L);
+		
+		Long w = mapOfNode.get((Long) ev.data);
+		w++;
+	}
 	
 	private static double normal(double mean, double var) {
 		return RandomHelper.createNormal(mean, var)
@@ -83,16 +96,25 @@ public class Oracle {
 		
 		this.currentSeconds = msg.timestamp;
 
+		Node sender = this.getNode(msg.message.source);
 		Node destination = this.getNode(msg.message.destination);		
 
 		// If there is no destination something bad happened (the node should never be removed from the context, use DEAD status instead)
 		if (destination == null) {
 			throw new Exception("Destination of message is null!");
+		} else if (sender == null) {
+			throw new Exception("Source of message is null!");
 		}
 
 		this.logMessage(msg);
 		
 		boolean toBeReceived = true;
+		
+		{
+			if (msg.message.data instanceof Gossip) {
+				((Gossip)msg.message.data).events.forEach(e -> sender.lpbCast(e));
+			}
+		}
 		
 		// If destination is dead, update the view and exit immediately (do not use any handle)
 		if (!destination.alive) {
@@ -157,6 +179,11 @@ public class Oracle {
 		for (Object o : ctx.getObjects(Node.class)) {
 			nodes.add((Node)o);
 		}
+		
+		// Schedule its first gossip // TODO: Change timings (maybe random or something)
+		nodes.stream().forEach( (Node n) -> {
+			this.scheduleGossip(0, new Message<>(n.id, n.id, new RoundStart()));
+		});
 
 		long tot_events = (long) (Options.TO_SECOND * Options.EVENTS_RATE);
 		ArrayList<Double> exData = new ArrayList<Double>((int) tot_events);
