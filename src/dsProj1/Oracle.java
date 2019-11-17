@@ -165,6 +165,7 @@ public class Oracle {
 		
 		source.view
 	 	      .stream()
+	 	      .map( (Frequency<UUID> v) -> v.data )
 	 	      .map(nodes::get)
 	 	      .forEach( (Node to) -> networkView.addEdge(source, to) );
 		

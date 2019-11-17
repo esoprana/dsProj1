@@ -8,7 +8,6 @@ public interface Options {
 	static final int RETRIEVE_SIZE = 5;
 	static final int EVENTS_SIZE = 60;
 	
-	
 	static final int FANOUT_SIZE = 3;
 	
 	static final int OLD_TIME_RETRIEVE = 1;
@@ -27,4 +26,6 @@ public interface Options {
 	static final double EVENTS_RATE = 45;
 	
 	static final double DROPPED_RATE = 0.1;
+
+	static final double K = 1.;
 }

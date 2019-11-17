@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
+import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 
 // Custom libraries
@@ -35,16 +36,16 @@ public class Node {
 		}
 
 		this.id = id;
-		this.view.addAll(initialView);
+		initialView.stream().map((UUID node) -> new Frequency(node)).forEach(this.view::add);
 
 		this.oracle = oracle;
 	}
 	
 	// TODO: Fare diagrammi articolo + magari qualcosina
 	
-	@NonNull List<@NonNull UUID> view = new ArrayList<@NonNull UUID>(2*Options.VIEWS_SIZE);              					   // Individual view // TODO: Fix permission(package -> private)
-	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>(2*Options.UN_SUBS_SIZE);          			   // Un-subscriptions
-	private @NonNull List<@NonNull UUID> subs = new ArrayList<@NonNull UUID>(2*Options.SUBS_SIZE);               			   // Subscriptions
+	@NonNull List<@NonNull Frequency<UUID>> view = new ArrayList<@NonNull Frequency<UUID>>(2*Options.VIEWS_SIZE);              					   // Individual view // TODO: Fix permission(package -> private)
+	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>(2*Options.UN_SUBS_SIZE);  // Un-subscriptions
+	private @NonNull List<@NonNull Frequency<UUID>> subs = new ArrayList<@NonNull Frequency<UUID>>(2*Options.SUBS_SIZE);       // Subscriptions
 	private @NonNull List<@NonNull EventId> eventIds	= new ArrayList<@NonNull EventId>(2*Options.EVENT_IDS_SIZE);      	   // Events already handled
 	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>(2*Options.RETRIEVE_SIZE);  // Events to be retrieved
 
@@ -55,6 +56,19 @@ public class Node {
 
 	public boolean alive = true;
 	private long currentRound = 1;
+	
+	public static <T> Frequency<T> selectProcess(List<Frequency<T>> l) {
+		double avg = ((double) l.stream().collect(Collectors.summingLong(w -> w.frequency))) / ((double) l.size());
+		
+		while (true) {
+			Frequency<T> target = l.get(RandomHelper.nextIntFromTo(0, l.size()-1));
+		
+			if (target.frequency > Options.K * avg)
+				return target;
+			else
+				++target.frequency;
+		}
+	}
 	
 	public static void shuffleTrim(@NonNull List<?> l, int dim) {
 		if (l.size() <= dim) 
@@ -283,9 +297,51 @@ public class Node {
 		shuffleTrim(this.unSubs, Options.UN_SUBS_SIZE);
 		
 		// PHASE 2: ADD NEW SUBSCRIPTIONS
+		g.data.subs.forEach(m -> {
+			int idx = this.view.indexOf(m);
+			
+			if (idx != -1) {
+				Frequency<UUID> m_ = this.view.get(idx);
+				
+				++m_.frequency;
+			} else {
+				++m.frequency;
+				
+				this.view.add(m);
+			}
+		});
+		
+		g.data.subs.forEach(m -> {
+			int idx = this.subs.indexOf(m);
+			
+			if (idx != -1) {
+				Frequency<UUID> m_ = this.subs.get(idx);
+				
+				++m_.frequency;
+			} else {
+				++m.frequency;
+				
+				this.subs.add(m);
+			}
+		});
+		
+		while (this.view.size() > Options.VIEWS_SIZE) {
+			Frequency<UUID> target = selectProcess(this.view);
+			this.view.remove(target);
+			
+			if (!this.subs.contains(target))
+				this.subs.remove(target);
+		}
+		
+		while (this.subs.size() > Options.SUBS_SIZE) {
+			Frequency<UUID> target = selectProcess(this.subs);
+			subs.remove(target); // TODO: In paper is different but like that it doesn't make sense
+		}
+		
+		/*
 		g.data.subs.stream() // TODO: Check variables
-			  	   .filter((UUID it) -> !this.view.contains(it) && !it.equals(this.id))
-			  	   .forEach((UUID it) -> {
+			  	   .filter((Frequency<UUID> it) -> !this.view.contains(it) && !it.equals(this.id))
+			  	   .forEach((Frequency<UUID> it) -> {
 			  		   if (!this.subs.contains(it)) this.subs.add(it);
 					 
 					   this.view.add(it);
@@ -293,17 +349,34 @@ public class Node {
 		
 		if (this.view.size() > Options.VIEWS_SIZE) {
 			Collections.shuffle(this.view);
-			List<UUID> t = this.view.subList(Options.VIEWS_SIZE, this.view.size());
+			List<Frequency<UUID>> t = this.view.subList(Options.VIEWS_SIZE, this.view.size());
 			this.subs.removeAll(t);
 			t.clear();
 		}
+		*/
 		
 		shuffleTrim(this.subs, Options.SUBS_SIZE);
 		
 		// PHASE 3: UPDATE EVENTS WITH NEW NOTIFICATIONS
+		// Update ages
 		g.data.events
-			  .forEach(this::handleEvent); // Handle all new events
+			  .stream()
+			  .forEach((Event e) -> {
+				  int idx = this.events.indexOf(e);
+				  
+				  if (idx == -1) {
+					  return;
+				  }
+				  
+				  Event found = this.events.get(idx);
+				  found.age = Math.min(found.age, e.age);
+			  });
 		
+		// Handle all new events
+		g.data.events
+			  .forEach(this::handleEvent);
+		
+		// Retrieve all lost events
 		g.data.eventIds
 		 	  .stream()
 		 	  .filter( (EventId it) -> !this.alreadySeenEventId(it))
@@ -366,6 +439,8 @@ public class Node {
 
 		// Otherwise, add
 		this.events.add(e);
+		
+		this.trimEvents();
 	}
 
 	private void handleEvent(@NonNull Event ev) {
@@ -412,10 +487,9 @@ public class Node {
 
 	private Gossip emitGossip() {
 		// Select FANOUT_SIZE targets to which send the gossip
-		List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
+		List<@NonNull Frequency<UUID>> targets = new ArrayList<>(Options.FANOUT_SIZE);
 		while (targets.size() <= Options.FANOUT_SIZE) {
-			
-			UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1));
+			Frequency<UUID> w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1));
 			
 			if (!targets.contains(w)) {
 				targets.add(w);
@@ -423,15 +497,15 @@ public class Node {
 		}
 
 		// Add ourselves to the subs list (if there is enough space just add, otherwise substitute at random)
-		List<@NonNull UUID> s = new ArrayList<>(this.subs);
-		if (s.size() < Options.SUBS_SIZE)
-			s.add(this.id);
+		List<@NonNull Frequency<UUID>> s = new ArrayList<>(this.subs);
+		if (s.size() < Options.SUBS_SIZE) // TODO: How to decide now?
+			s.add(new Frequency<UUID>(this.id));
 		else 
-			s.set(RandomHelper.nextIntFromTo(0, this.view.size()-1), this.id);
+			s.set(RandomHelper.nextIntFromTo(0, this.view.size()-1), new Frequency<>(this.id));
 		
 		// Create the gossip and sent it
 		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
-		targets.forEach(t -> this.send(t, g));
+		targets.forEach(t -> this.send(t.data, g));
 
 		//this.events.clear();
 		
@@ -457,8 +531,7 @@ public class Node {
 						List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
 						targets.add(el.sender);
 						while (targets.size() <= Options.FANOUT_SIZE) {
-							
-							UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1));
+							UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1)).data;
 							
 							if (!targets.contains(w)) {
 								targets.add(w);

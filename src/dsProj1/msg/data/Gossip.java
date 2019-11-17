@@ -12,16 +12,16 @@ import java.util.UUID;
 // Custom libraries
 import dsProj1.Options; // Get runtime options
 import dsProj1.EventId;
+import dsProj1.Frequency;
 import dsProj1.msg.data.Event;
 
-
 public class Gossip {
-	public final @NonNull List<@NonNull UUID> unSubs;          // Un-subscriptions
-	public final @NonNull List<@NonNull UUID> subs;            // Subscriptions
-	public final @NonNull List<@NonNull EventId> eventIds; 	   // Ids of already handled events already handled
-	public final @NonNull List<@NonNull Event> events; // Event ids
+	public final @NonNull List<@NonNull UUID> unSubs;    // Un-subscriptions
+	public final @NonNull List<@NonNull Frequency<UUID>> subs;      // Subscriptions
+	public final @NonNull List<@NonNull EventId> eventIds; 	   		// Ids of already handled events already handled
+	public final @NonNull List<@NonNull Event> events; 				// Event ids
 	
-	public Gossip(@NonNull Collection<@NonNull UUID> subs, 
+	public Gossip(@NonNull Collection<@NonNull Frequency<UUID>> subs, 
 			  	  @NonNull Collection<@NonNull UUID> unSubs, 
 			  	  @NonNull Collection<@NonNull EventId> eventIds, 
 			  	  @NonNull Collection<@NonNull Event> events) {
@@ -42,7 +42,7 @@ public class Gossip {
 //		}
 	
 		this.unSubs = new ArrayList<@NonNull UUID>(unSubs);
-		this.subs = new ArrayList<@NonNull UUID>(subs);
+		this.subs = new ArrayList<@NonNull Frequency<UUID>>(subs);
 		this.eventIds = new ArrayList<@NonNull EventId>(eventIds);
 		this.events = new ArrayList<@NonNull Event>(events);
 	}
