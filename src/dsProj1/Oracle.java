@@ -28,7 +28,7 @@ import dsProj1.msg.data.Gossip;
 import dsProj1.msg.data.RetrieveMessage;
 
 public class Oracle {
-	private double currentSeconds = 0;
+	public double currentSeconds = 0;
 	private long nData = 0;
 	
 	private HashMap<UUID, HashMap<Long, Long>> received = new HashMap<>();
@@ -115,12 +115,6 @@ public class Oracle {
 		}
 		
 		boolean toBeReceived = true;
-		
-		{
-			if (msg.message.data instanceof Gossip) {
-				((Gossip)msg.message.data).events.forEach(e -> sender.lpbCast(e));
-			}
-		}
 		
 		// If destination is dead, update the view and exit immediately (do not use any handle)
 		if (!destination.alive) {

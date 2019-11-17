@@ -6,17 +6,14 @@ import org.eclipse.jdt.annotation.NonNull;
 // Standard libraries
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 // Custom libraries
 import dsProj1.msg.Message;
@@ -73,21 +70,34 @@ public class Node {
 		}
 
 		Optional<EventId> min = this.eventIds.stream()
-					 						 .filter( id -> id.source == eId.source)
+					 						 .filter( id -> id.source.equals(eId.source))
 					 						 .min( Comparator.comparing(id -> id.id) );
 
 		return min.isPresent() && eId.id < min.get().id;
 	}
 	
 	private void addEventId(EventId eId) {
+		if (this.eventIds.contains(eId)) {
+			return;
+		}
+
 		// Find last id received in sequence from eId.soruce
 		Optional<EventId> min = this.eventIds.stream()
-				 							 .filter( id -> id.source == eId.source)
+				 							 .filter( id -> id.source.equals(eId.source))
 				 							 .min( Comparator.comparing(id -> id.id) );
 
-		if (!min.isPresent() || min.get().id != eId.id-1) {
-			this.eventIds.add(eId);
+		if (!min.isPresent()) {
+			this.eventIds.add(eId); // If we never received from source add
 			return;
+		}
+		
+		if (min.get().id+1 < eId.id) {
+			this.eventIds.add(eId); // If it's bigger than add
+			return;
+		}
+		
+		if (min.get().id > eId.id) {
+			return; // Already read (cumulative)
 		}
 		
 		final long newId;
@@ -96,10 +106,10 @@ public class Node {
 			long toSearchId = eId.id+1;
 			for(;this.eventIds.contains(new EventId(eId.source, toSearchId));++toSearchId);
 
-			newId = toSearchId - 1;
+			newId = toSearchId-1;
 		}
 		
-		this.eventIds.removeIf(id -> eId.source.equals(id.source) && id.id <= newId);
+		this.eventIds.removeIf(id -> eId.source.equals(id.source) && newId >= id.id);
 		this.eventIds.add(new EventId(eId.source, newId)); // -1 as newId contains the last one which was not found
 	}
 	
@@ -136,7 +146,7 @@ public class Node {
 			evs.remove(evs.size()-1);
 			--l;
 			
-			while (l > 0 && evs.size() > 1 && evs.get(evs.size()-2).id+1 == evs.get(evs.size()-1).id) {
+			while (l > 0 && evs.size() > 1 && evs.get(evs.size()-2).id == evs.get(evs.size()-1).id+1) {
 				evs.remove(evs.size()-1);
 				--l;
 			}
@@ -229,11 +239,6 @@ public class Node {
 			List<Event> evs = k.get();
 			evs.remove(evs.size()-1);
 			--l;
-			
-			while (l > 0 && evs.size() > 1 && evs.get(evs.size()-2).eventId.id+1 == evs.get(evs.size()-1).eventId.id) {
-				evs.remove(evs.size()-1);
-				--l;
-			}
 		}
 		
 		// Now that we removed the out-of-date items we can just get the first Options.EVENTS_SIZE with the smallest age
@@ -308,32 +313,33 @@ public class Node {
 					  return;
 				  
 				  this.retrieveBuf.add(k);
+				  
 			  });
 				
-//		Map<UUID, Optional<@NonNull EventId>> evs = this.eventIds.stream()
-//					 											 .collect(
-//					 													Collectors.groupingBy( (EventId e) -> e.source,		 
-//					 													Collectors.minBy( Comparator.comparing((EventId e) -> e.id) )));
-//		
-//		g.data.eventIds.stream()
-//					   .collect(Collectors.groupingBy((EventId e) -> e.source, Collectors.minBy( Comparator.comparing((EventId e) -> e.id)  )))
-//					   .values()
-//					   .stream()
-//					   .forEach( (Optional<EventId> oEv) -> {
-//						   EventId ev = oEv.get();
-//						   
-//						   if (evs.containsKey(ev.source)) {
-//							   EventId toComp = evs.get(ev.source).get();
-//							   
-//							   for(long i = ev.id-1; i > toComp.id; --i) {
-//								   ToRetrieveEv toRetrieveEv = new ToRetrieveEv(new EventId(ev.source, i), this.currentRound, g.source);
-//								   
-//								   if (!this.retrieveBuf.contains(toRetrieveEv)) {
-//									   this.retrieveBuf.add(toRetrieveEv);								   
-//								   }
-//							   }
-//						   }
-//					   });
+		Map<UUID, Optional<@NonNull EventId>> evs = this.eventIds.stream()
+					 											 .collect(
+					 													Collectors.groupingBy( (EventId e) -> e.source,		 
+					 													Collectors.minBy( Comparator.comparing((EventId e) -> e.id) )));
+		
+		g.data.eventIds.stream()
+					   .collect(Collectors.groupingBy((EventId e) -> e.source, Collectors.minBy( Comparator.comparing((EventId e) -> e.id)  )))
+					   .values()
+					   .stream()
+					   .forEach( (Optional<EventId> oEv) -> {
+						   EventId ev = oEv.get();
+						   
+						   if (evs.containsKey(ev.source)) {
+							   EventId toComp = evs.get(ev.source).get();
+							   
+							   for(long i = ev.id-1; i > toComp.id; --i) {
+								   ToRetrieveEv toRetrieveEv = new ToRetrieveEv(new EventId(ev.source, i), this.currentRound, g.source);
+								   
+								   if (!this.retrieveBuf.contains(toRetrieveEv)) {
+									   this.retrieveBuf.add(toRetrieveEv);								   
+								   }
+							   }
+						   }
+					   });
 
 		// Fix size of EVENT_IDS
 		this.trimEventIds();
@@ -385,19 +391,18 @@ public class Node {
 		}
 	}
 	
-	private void handleRetrieve(Message<RetrieveMessage> rm) throws Exception {
-		Iterator<Event> it = this.events.iterator();
-		while (it.hasNext()) {
-			Event e = it.next();
-			
-			if (e.eventId.equals(rm.data.eventIdRequested)) {
-				System.err.println("FOUND!!!");
-				this.send(rm.source, e);
-				return;
-			}
-		}
+	private void handleRetrieve(Message<RetrieveMessage> rm) throws Exception {	
+		Optional<Event> oe = this.events.stream()
+				   						.filter(e -> e.eventId.equals(rm.data.eventIdRequested))
+				   						.findAny();
 
-		return; // TODO: Should I respond instead? (I think so)
+		if (!oe.isPresent())
+			return;
+
+		System.err.println("FOUND!!!");
+		this.send(rm.source, oe.get());
+
+		// TODO: Should I respond instead? (I think so)
 	}
 
 	private void lpbDeliver(@NonNull Event ev) {
@@ -405,10 +410,10 @@ public class Node {
 		//System.out.println("Node[" + this.id + "] received Event[" + ev.data + "]");
 	}
 
-	private void emitGossip() {
+	private Gossip emitGossip() {
 		// Select FANOUT_SIZE targets to which send the gossip
 		List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
-		while (targets.size() < Options.FANOUT_SIZE) {
+		while (targets.size() <= Options.FANOUT_SIZE) {
 			
 			UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1));
 			
@@ -427,11 +432,13 @@ public class Node {
 		// Create the gossip and sent it
 		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
 		targets.forEach(t -> this.send(t, g));
-				 
-		this.events.clear();
 
+		//this.events.clear();
+		
 		// Schedule another gossip in Options.GOSSIP_INTERVAL seconds
 		this.scheduleGossip(Options.GOSSIP_INTERVAL);
+		
+		return g;
 	}
 
 	private void retrieve() {
@@ -446,31 +453,68 @@ public class Node {
 				it.remove();
 			} else {
 				switch(el.noRequests) {
+					case -1:
+						List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
+						targets.add(el.sender);
+						while (targets.size() <= Options.FANOUT_SIZE) {
+							
+							UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1));
+							
+							if (!targets.contains(w)) {
+								targets.add(w);
+							}
+						}
+						
+						targets.forEach(k -> this.requestRetrieve(el.eventId, k));
+						el.noRequests++;
+						el.requestedAtRound = this.currentRound;
+						break;
+					case 0:
+						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+							this.requestRetrieve(el.eventId, el.eventId.source); // How to get the source?
+							el.noRequests++;
+							el.requestedAtRound = this.currentRound;
+						}
+						break;
+					case 1:
+						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+							// Packet is considered lost, log something and give up
+							System.err.println("FAILURE!");
+							it.remove();
+						}
+						break;
+				}
+				/*
+				//System.err.println(this.oracle.currentSeconds + "[" + this.id + "] TRYING TO FIND " + el.eventId + " tentative " + el.noRequests);
+				switch(el.noRequests) {
 					case -1: // If is the first time this happens ask to who sent us the related gossip
 						this.requestRetrieve(el.eventId, el.sender);
 						el.noRequests++;
 						el.requestedAtRound = this.currentRound;
 						break;
 					case 0: // If it's the second time ask to a random node
-						if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
 							this.requestRetrieve(el.eventId, this.view.get( RandomHelper.nextIntFromTo(0, this.view.size()-1) ));
 							el.noRequests++;
 							el.requestedAtRound = this.currentRound;
 						}
+						break;
 					case 1: // If it's the third time ask source
-						if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
 							this.requestRetrieve(el.eventId, el.eventId.source); // How to get the source?
 							el.noRequests++;
 							el.requestedAtRound = this.currentRound;
 						}
 						break;
 					case 2: // If 3° time failed just fail
-						if (this.currentRound > el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							// Packet is considered lost, log something
+						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+							// Packet is considered lost, log something and give up
 							System.err.println("FAILURE!");
+							it.remove();
 						}
 						break;
 				}
+				*/
 			}
 		}
 	}
@@ -478,7 +522,8 @@ public class Node {
 	public void startRound() {
 		++this.currentRound;
 		this.events.forEach(e -> ++e.age);
-		this.emitGossip();
+		Gossip g = this.emitGossip();
+		//this.events.addAll(g.events); // Simulate upon lpbcast
 		this.retrieve();
 	}
 }
