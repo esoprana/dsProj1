@@ -31,6 +31,9 @@ public class NodeBuilder implements ContextBuilder<Object> {
 		// Set id of context
 		context.setId("dsProj1");
 		
+		// Load all settings
+		Options.load();
+		
 		// Create grid and space
 		ContinuousSpaceFactory spaceFactory = ContinuousSpaceFactoryFinder.createContinuousSpaceFactory(null);
 		ContinuousSpace<Object> space = spaceFactory.createContinuousSpace("space", 
@@ -59,7 +62,7 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			
 			// Create node with random connections (of size VIEWS_SIZE) and add it to the context
 			Node n = new Node(nodes.get(i), 
-							  nodes_uuid_copy.subList(0, Options.VIEWS_SIZE), // copy is done on Node's side
+							  nodes_uuid_copy.subList(0, (int) Math.round(Options.INITIAL_VIEW_PERC * Options.VIEWS_SIZE)), // copy is done on Node's side
 							  oracle);
 			context.add(n);
 		}

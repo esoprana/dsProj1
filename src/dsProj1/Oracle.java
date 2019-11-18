@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 // Standard libraries
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -51,6 +53,18 @@ public class Oracle {
 		Long w = mapOfNode.get((Long) ev.data);
 		w++;
 	}
+	/*
+	public void getStat() {
+		HashSet<Long> data = new HashSet(); 
+		
+		this.received.values().flatM
+		forEach(e -> {
+			e.keySet().
+		});
+		for (HashMap<Long, Long> m : this.received) {
+			for ()
+		}
+	}*/
 	
 	private static double normal(double mean, double var) {
 		return RandomHelper.createNormal(mean, var)
@@ -182,10 +196,8 @@ public class Oracle {
 
 		this.updateView(msg, toBeReceived);
 		
-		{
-			if (messages.isEmpty() || this.lastScheduling + 1 <= messages.first().timestamp) {
-				this.schedule();
-			}
+		if (messages.isEmpty() || this.lastScheduling + 1 <= messages.first().timestamp) {
+			this.schedule();
 		}
 	}
 	

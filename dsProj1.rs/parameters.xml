@@ -12,12 +12,182 @@
 						converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter"
 									
 		/>
-				<parameter name="NODES_COUNT" displayName="Number of nodes(NODES_COUNT)" type="int" 
-						defaultValue="120" 
-						isReadOnly="false" 
-						converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
-									
+		<parameter
+			name="NODE_COUNT"
+			displayName="Number of nodes (NODE_COUNT)"
+			type="int"
+			defaultValue="120"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
 		/>
+		
+		<parameter
+			name="INITIAL_VIEW_PERC"
+			displayName="Percentage of values to fill for the initial view (VIEWS_SIZE)"
+			type="double"
+			defaultValue="0.59"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		
+		<parameter
+			name="VIEWS_SIZE"
+			displayName="View size (VIEWS_SIZE)"
+			type="int"
+			defaultValue="5"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		
+		<parameter
+			name="UN_SUBS_SIZE"
+			displayName="Unsub buffer size(UN_SUBS_SIZE)"
+			type="int"
+			defaultValue="5"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		<parameter
+			name="SUBS_SIZE"
+			displayName="Sub buffer size (SUBS_SIZE)"
+			type="int"
+			defaultValue="5"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		<parameter
+			name="EVENT_IDS_SIZE"
+			displayName="Event ids buffer size(EVENT_IDS_SIZE)"
+			type="int"
+			defaultValue="20"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		<parameter
+			name="EVENTS_SIZE"
+			displayName="Event buffer size(EVENTS_SIZE)"
+			type="int"
+			defaultValue="60"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		<parameter
+			name="FANOUT_SIZE"
+			displayName="Fanout size (FANOUT_SIZE)"
+			type="int"
+			defaultValue="3"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		<parameter
+			name="OLD_TIME_RETRIEVE"
+			displayName="Number of rounds before trying to retrieve (OLD_TIME_RETRIEVE)"
+			type="int"
+			defaultValue="1"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		<parameter
+			name="REQUEST_TIMEOUT_ROUNDS"
+			displayName="Timeout after which to try another retrieve (REQUEST_TIMEOUT_ROUNDS)"
+			type="int"
+			defaultValue="1"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
+		/>
+		
+		<parameter
+			name="MEAN_LATENCY"
+			displayName="Mean latency of the system (gaussian) (MEAN_LATENCY)"
+			type="double"
+			defaultValue="0.013"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		<parameter
+			name="VAR_LATENCY"
+			displayName="Variance latency of system (gaussian) (VAR_LATENCY)"
+			type="double"
+			defaultValue="0.003"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+			/>
+		<parameter
+			name="GOSSIP_INTERVAL"
+			displayName="Gossip interval (GOSSIP_INTERVAL)"
+			type="double"
+			defaultValue="30"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		<parameter
+			name="DRIFT_PER_SECOND"
+			displayName="Clock drift for each second (DRIFT_PER_SECOND)"
+			type="double"
+			defaultValue="0.00001"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		 
+		<parameter
+			name="LONG_AGO"
+			displayName="Number of events after which an older event is deleted (LONG_AGO)"
+			type="long"
+			defaultValue="3"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$LongConverter"
+		/>
+		<parameter
+			name="EVENTS_RATE"
+			displayName="Rate of events inserted in the system (EVENTS_RATE)"
+			type="double"
+			defaultValue="45"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		<parameter
+			name="EVENTS_VAR_RATE"
+			displayName="Variance of EVENTS_RATE (EVENTS_VAR_RATE)"
+			type="double"
+			defaultValue="5"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		<parameter
+			name="DROPPED_RATE"
+			displayName="Probability of losing a message(DROPPED_RATE)"
+			type="double"
+			defaultValue="0.1"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		<parameter
+			name="DEATH_RATE"
+			displayName="Percentage of nodes to kill (DEATH_RATE)"
+			type="double"
+			defaultValue="0.05"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		<parameter
+			name="EXPECTED_TIME_STABLE_TIME"
+			displayName="Expected time to fulfill percentage of nodes killed (EXPECTED_TIME_STABLE_TIME)"
+			type="double"
+			defaultValue="690.0"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		<parameter
+			name="K"
+			displayName="Threshold for deletion based on avg frequency (K)"
+			type="double"
+			defaultValue="1.0"
+			isReadOnly="false"
+			converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"
+		/>
+		
+
+
 				<parameter name="viewdirected" displayName="view directed" type="java.lang.Boolean" 
 						defaultValue="true" 
 						isReadOnly="false" 

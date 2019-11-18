@@ -47,7 +47,7 @@ public class Node {
 	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>(2*Options.UN_SUBS_SIZE);  // Un-subscriptions
 	private @NonNull List<@NonNull Frequency<UUID>> subs = new ArrayList<@NonNull Frequency<UUID>>(2*Options.SUBS_SIZE);       // Subscriptions
 	private @NonNull List<@NonNull EventId> eventIds	= new ArrayList<@NonNull EventId>(2*Options.EVENT_IDS_SIZE);      	   // Events already handled
-	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>(2*Options.RETRIEVE_SIZE);  // Events to be retrieved
+	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>();  // Events to be retrieved
 
 	private @NonNull List<@NonNull Event> events = new ArrayList<@NonNull Event>(2*Options.EVENTS_SIZE);
 
@@ -494,7 +494,7 @@ public class Node {
 	private Gossip emitGossip() {
 		// Select FANOUT_SIZE targets to which send the gossip
 		List<@NonNull Frequency<UUID>> targets = new ArrayList<>(Options.FANOUT_SIZE);
-		while (targets.size() <= Options.FANOUT_SIZE) {
+		while (targets.size() <= Math.min(this.view.size()-1, Options.FANOUT_SIZE)) {
 			Frequency<UUID> w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1));
 			
 			if (!targets.contains(w)) {
@@ -534,9 +534,10 @@ public class Node {
 			} else {
 				switch(el.noRequests) {
 					case -1:
+						
 						List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
 						targets.add(el.sender);
-						while (targets.size() <= Options.FANOUT_SIZE) {
+						while (targets.size() <= Math.min(this.view.size()-1, Options.FANOUT_SIZE)) {
 							UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1)).data;
 							
 							if (!targets.contains(w)) {
@@ -573,7 +574,7 @@ public class Node {
 						break;
 					case 0: // If it's the second time ask to a random node
 						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							this.requestRetrieve(el.eventId, this.view.get( RandomHelper.nextIntFromTo(0, this.view.size()-1) ));
+							this.requestRetrieve(el.eventId, this.view.get( RandomHelper.nextIntFromTo(0, this.view.size()-1) ).data);
 							el.noRequests++;
 							el.requestedAtRound = this.currentRound;
 						}
