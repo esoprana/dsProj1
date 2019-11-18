@@ -4,6 +4,8 @@
   <sizeMax>1.0</sizeMax>
   <sizeMin>0.0</sizeMin>
   <sizeScale>1.0</sizeScale>
+  <sizeMethodName>getWeight</sizeMethodName>
+  <sizeMaxMethodName>getWeight</sizeMaxMethodName>
   <color>
     <float>0.8</float>
     <float>0.8</float>

@@ -16,7 +16,7 @@
   <netStyles>
     <entry>
       <string>view</string>
-      <string>repast.simphony.visualization.editedStyle.ViewEdgeStyle2D</string>
+      <string>repast.simphony.visualization.editedStyle.EditedEdgeStyle2D</string>
     </entry>
     <entry>
       <string>message</string>
@@ -41,7 +41,7 @@
     <pType>LAST</pType>
     <duration>-1.0</duration>
     <frequency>REPEAT</frequency>
-    <hashCode>-1809806754</hashCode>
+    <hashCode>-502552235</hashCode>
   </schedParams>
   <layoutClassName>foo.bar.baz</layoutClassName>
   <layoutProjection>space</layoutProjection>
