@@ -286,8 +286,14 @@ public class Node {
 	
 	private void handleGossip(@NonNull Message<Gossip> g) {
 		// PHASE 1: UPDATE VIEW AND UNSUBS
-		this.view.removeAll(g.data.unSubs); // Remove all gossip unsubs from global view
-		this.subs.removeAll(g.data.unSubs); // Remove all gossip unsubs from global subs
+		// First let's convert subs in a list with frequencies
+		List<Frequency<UUID>> newSubs = g.data.subs
+											  .stream()
+											  .map(u -> new Frequency<>(u))
+											  .collect(Collectors.toCollection(ArrayList<Frequency<UUID>>::new));
+		
+		this.view.removeAll(newSubs); // Remove all gossip unsubs from global view
+		this.subs.removeAll(newSubs); // Remove all gossip unsubs from global subs
 		
 		g.data.unSubs.stream()
 				     .filter((UUID it) -> !this.unSubs.contains(it)) // Remove already contained
@@ -297,7 +303,7 @@ public class Node {
 		shuffleTrim(this.unSubs, Options.UN_SUBS_SIZE);
 		
 		// PHASE 2: ADD NEW SUBSCRIPTIONS
-		g.data.subs.forEach(m -> {
+		newSubs.forEach(m -> {
 			int idx = this.view.indexOf(m);
 			
 			if (idx != -1) {
@@ -311,7 +317,7 @@ public class Node {
 			}
 		});
 		
-		g.data.subs.forEach(m -> {
+		newSubs.forEach(m -> {
 			int idx = this.subs.indexOf(m);
 			
 			if (idx != -1) {
@@ -497,11 +503,11 @@ public class Node {
 		}
 
 		// Add ourselves to the subs list (if there is enough space just add, otherwise substitute at random)
-		List<@NonNull Frequency<UUID>> s = new ArrayList<>(this.subs);
+		List<@NonNull UUID> s = this.subs.stream().map(f -> f.data).collect(Collectors.toCollection(ArrayList<UUID>::new));
 		if (s.size() < Options.SUBS_SIZE) // TODO: How to decide now?
-			s.add(new Frequency<UUID>(this.id));
+			s.add(this.id);
 		else 
-			s.set(RandomHelper.nextIntFromTo(0, this.view.size()-1), new Frequency<>(this.id));
+			s.set(RandomHelper.nextIntFromTo(0, this.view.size()-1), this.id);
 		
 		// Create the gossip and sent it
 		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
@@ -596,7 +602,6 @@ public class Node {
 		++this.currentRound;
 		this.events.forEach(e -> ++e.age);
 		Gossip g = this.emitGossip();
-		//this.events.addAll(g.events); // Simulate upon lpbcast
 		this.retrieve();
 	}
 }

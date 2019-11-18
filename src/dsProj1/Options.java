@@ -22,10 +22,12 @@ public interface Options {
 	
 	static final int NODE_COUNT = 120;
 	
-	static final double TO_SECOND = 10000.;
 	static final double EVENTS_RATE = 45;
+	static final double EVENTS_VAR_RATE = 5;
 	
 	static final double DROPPED_RATE = 0.1;
+	static final double DEATH_RATE = 0.05;
+	static final double EXPECTED_TIME_STABLE_TIME = 690.;
 
 	static final double K = 1.;
 }

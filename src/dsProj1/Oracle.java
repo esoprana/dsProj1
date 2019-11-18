@@ -9,8 +9,10 @@ import java.util.Collections;
 // Standard libraries
 import java.util.HashMap;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 // Repast libraries
 import repast.simphony.context.Context;
@@ -18,7 +20,7 @@ import repast.simphony.engine.schedule.ScheduledMethod;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.graph.Network;
 import repast.simphony.util.ContextUtils;
-
+import zmq.Msg;
 // Custom libraries
 import dsProj1.msg.Message;
 import dsProj1.msg.data.RoundStart;
@@ -29,7 +31,14 @@ import dsProj1.msg.data.RetrieveMessage;
 
 public class Oracle {
 	public double currentSeconds = 0;
+	public double lastScheduling = 0;
+	
 	private long nData = 0;
+	private double death_rate_per_second;
+	
+	private double inversePCDF(double p, int pass) {
+		return Math.pow(p, 1./( (double) pass ));
+	}
 	
 	private HashMap<UUID, HashMap<Long, Long>> received = new HashMap<>();
 	
@@ -80,12 +89,49 @@ public class Oracle {
 	}
 	
 	public String currentTask() {
-		@Nullable Timestamped<Message<?>> msg = this.messages.first();
-		
-		if (msg == null)
+		try {
+			Timestamped<Message<?>> msg = this.messages.first();
+			
+			return msg.toString();
+		} catch (NoSuchElementException w) {
 			return "";
+		}
+	}
+	
+	private void schedule() {
+		// Update time to new schedule time
+		this.lastScheduling+=1.;
+
+		// Get all nodes
+		Context ctx = ContextUtils.getContext(this);
+		List<Node> nodes = new ArrayList<Node>(Options.NODE_COUNT);
+		for (Object o : ctx.getObjects(Node.class)) {
+			nodes.add((Node)o);
+		}
+
+		List<Node> aliveNodes = nodes.stream().filter(n -> n.alive).collect(Collectors.toCollection(ArrayList<Node>::new));
+		System.out.println("Alive@" + this.currentSeconds + ": " + aliveNodes.size());
 		
-		return msg.toString();
+		aliveNodes.stream()
+				  .filter( n -> RandomHelper.nextDoubleFromTo(0, 1) <= this.death_rate_per_second)
+				  .forEach( n -> n.alive = false);
+		
+		// Create new events
+		cern.jet.random.Uniform u = RandomHelper.createUniform(0, 1);
+		
+		long tot_events = Math.round(normalCut(Options.EVENTS_RATE, Options.EVENTS_VAR_RATE));
+		ArrayList<Double> exData = new ArrayList<Double>((int) tot_events);
+
+		for (int i=0; i<tot_events; ++i) {
+			exData.add(u.nextDouble() + this.lastScheduling);
+		}
+		
+		exData.stream().sorted().map((Double t) -> {
+			Node node = nodes.get(RandomHelper.nextIntFromTo(0, nodes.size()-1));
+			Message msg = new Message<ExternalData<?>>(node.id, node.id, new ExternalData<>(++this.nData));
+			
+			return new Timestamped(t, msg);
+		}).forEach(this.messages::add);
 	}
 	
 	@ScheduledMethod(start = 1, interval = 1)
@@ -120,18 +166,30 @@ public class Oracle {
 		if (!destination.alive) {
 			toBeReceived = false;
 		}
-
-		if (RandomHelper.nextDouble() <= Options.DROPPED_RATE) {
-			toBeReceived = false;
+		
+		// If the message is not a simulated one but a real one (no schedule but message)
+		if (msg.message.data instanceof Event || 
+			msg.message.data instanceof ToRetrieveEv || 
+			msg.message.data instanceof Gossip) {
+			if (RandomHelper.nextDouble() <= Options.DROPPED_RATE) {
+				toBeReceived = false;
+			}	
 		}
 		
 		if(toBeReceived)
 			destination.handleMessage(msg.message);
 				
-		this.updateView(msg);
+
+		this.updateView(msg, toBeReceived);
+		
+		{
+			if (messages.isEmpty() || this.lastScheduling + 1 <= messages.first().timestamp) {
+				this.schedule();
+			}
+		}
 	}
 	
-	public void updateView(Timestamped<Message<?>> msg) {
+	public void updateView(Timestamped<Message<?>> msg, boolean toBeReceived) {
 		// Get source and destination (if scheduled event of node, source and destination are the same)
 		Node source = this.getNode(msg.message.source);
 		Node destination = this.getNode(msg.message.destination);
@@ -165,17 +223,15 @@ public class Oracle {
 		
 		source.view
 	 	      .stream()
-	 	      .map( (Frequency<UUID> v) -> v.data )
-	 	      .map(nodes::get)
-	 	      .forEach( (Node to) -> networkView.addEdge(source, to) );
+	 	      .forEach( (Frequency<UUID> v) -> {
+		 	    	 networkView.addEdge(source, nodes.get(v.data), v.frequency + 1.); // Show frequency using width
+	 	      });
 		
 		// - Message network
-		networkMessage.addEdge(source, destination);
+		networkMessage.addEdge(source, destination, toBeReceived?1:1);
 	}
 
 	public void init(Context ctx) {
-		cern.jet.random.Uniform u = RandomHelper.createUniform(0, Options.TO_SECOND);
-
 		List<Node> nodes = new ArrayList<Node>(Options.NODE_COUNT);
 		for (Object o : ctx.getObjects(Node.class)) {
 			nodes.add((Node)o);
@@ -184,20 +240,8 @@ public class Oracle {
 		// Schedule its first gossip // TODO: Change timings (maybe random or something)
 		nodes.stream().forEach( (Node n) -> {
 			this.scheduleGossip(0, new Message<>(n.id, n.id, new RoundStart()));
-		});
+		});		
 
-		long tot_events = (long) (Options.TO_SECOND * Options.EVENTS_RATE);
-		ArrayList<Double> exData = new ArrayList<Double>((int) tot_events);
-
-		for (int i=0; i<tot_events; ++i) {
-			exData.add(u.nextDoubleFromTo(0, Options.TO_SECOND)+1);
-		}
-		
-		exData.stream().sorted().map((Double t) -> {
-			Node n = nodes.get(RandomHelper.nextIntFromTo(0, nodes.size()-1));
-			Message msg = new Message<ExternalData<?>>(n.id, n.id, new ExternalData<>(++this.nData));
-			
-			return new Timestamped(t, msg);
-		}).forEach(this.messages::add);
+		this.death_rate_per_second = 1-inversePCDF(1 - Options.DEATH_RATE, (int) Options.EXPECTED_TIME_STABLE_TIME-1);
 	}
 }
