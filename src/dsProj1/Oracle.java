@@ -124,7 +124,7 @@ public class Oracle {
 		}
 
 		List<Node> aliveNodes = nodes.stream().filter(n -> n.alive).collect(Collectors.toCollection(ArrayList<Node>::new));
-		System.out.println("Alive@" + this.currentSeconds + ": " + aliveNodes.size());
+		//System.out.println("Alive@" + this.currentSeconds + ": " + aliveNodes.size());
 		
 		aliveNodes.stream()
 				  .filter( n -> RandomHelper.nextDoubleFromTo(0, 1) <= this.death_rate_per_second)
@@ -183,11 +183,12 @@ public class Oracle {
 		
 		// If the message is not a simulated one but a real one (no schedule but message)
 		if (msg.message.data instanceof Event || 
-			msg.message.data instanceof ToRetrieveEv || 
+			msg.message.data instanceof RetrieveMessage || 
 			msg.message.data instanceof Gossip) {
+			System.out.println(msg.message.data.getClass());
 			if (RandomHelper.nextDouble() <= Options.DROPPED_RATE) {
 				toBeReceived = false;
-			}	
+			}
 		}
 		
 		if(toBeReceived)
@@ -240,7 +241,7 @@ public class Oracle {
 	 	      });
 		
 		// - Message network
-		networkMessage.addEdge(source, destination, toBeReceived?1:1);
+		networkMessage.addEdge(new MessageEdge(source, destination, msg.message, toBeReceived?3:1));
 	}
 
 	public void init(Context ctx) {

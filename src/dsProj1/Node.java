@@ -480,7 +480,7 @@ public class Node {
 		if (!oe.isPresent())
 			return;
 
-		System.err.println("FOUND!!!");
+		//System.err.println("FOUND!!!");
 		this.send(rm.source, oe.get());
 
 		// TODO: Should I respond instead? (I think so)
@@ -559,7 +559,7 @@ public class Node {
 					case 1:
 						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
 							// Packet is considered lost, log something and give up
-							System.err.println("FAILURE!");
+							//System.err.println("FAILURE!");
 							it.remove();
 						}
 						break;
