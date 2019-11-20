@@ -2,6 +2,14 @@
 <parameters>
 	<!--  Simulator parameters -->
 	<parameter
+		name="fake1"
+		displayName="0******** SIMULATOR PARAMETERS ******"
+		type="java.lang.String"
+		defaultValue=""
+		isReadOnly="true"
+		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
+	
+	<parameter
 		name="NODE_COUNT"
 		displayName="000 - Number of nodes (NODE_COUNT)"
 		type="int"
@@ -73,6 +81,14 @@
 		converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter" />
 
 	<!-- Node options -->	
+	<parameter
+		name="fake2"
+		displayName="1************** NODE OPTIONS ************"
+		type="java.lang.String"
+		defaultValue=""
+		isReadOnly="true"
+		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
+	
 	<parameter
 		name="GOSSIP_INTERVAL"
 		displayName="100 - Gossip interval (GOSSIP_INTERVAL)"
@@ -194,6 +210,14 @@
 	
 	<!-- Roba di repast -->
 	<parameter
+		name="fake2"
+		displayName="2************* REPAST OPTIONS ***********"
+		type="java.lang.String"
+		defaultValue=""
+		isReadOnly="true"
+		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
+	
+	<parameter
 		name="randomSeed"
 		displayName="Default Random Seed"
 		type="int"
@@ -215,5 +239,3 @@
 		isReadOnly="false"
 		converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter" />
 </parameters>
-
-
