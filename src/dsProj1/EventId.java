@@ -10,6 +10,8 @@ public class EventId {
 	public final long id; // This is is incremental (can be so as the increment is local to the source)
 	public final @NonNull UUID source;
 	
+	public double timestamp = -1;
+	
 	public EventId(@NonNull UUID source, long id) {
 		this.id = id;
 		this.source = source;
@@ -17,7 +19,7 @@ public class EventId {
 	
 	@Override
 	public String toString() {
-		return "EventId[source="+ this.source + ", id=" + this.id +"]";
+		return "EventId[source="+ this.source + ", id=" + this.id +", timestamp=" + this.timestamp + "]";
 	}
 
 	@Override

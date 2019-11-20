@@ -33,9 +33,17 @@ public class Options {
 	
 	static double DROPPED_RATE;
 	static double DEATH_RATE;
-	static double EXPECTED_TIME_STABLE_TIME;
+	static double EXPECTED_STABLE_TIME;
 
 	static double K;
+	
+	static String EVENTS_OPTIMIZATION_FIRST;
+	static String EVENTS_OPTIMIZATION_SECOND;
+	
+	static String EVENT_IDS_OPTIMIZATION_FIRST;
+	static String EVENT_IDS_OPTIMIZATION_SECOND;
+	
+	static boolean SUBS_OPTIMIZATION;
 	
 	static void load() {
 		Parameters  params = RunEnvironment.getInstance().getParameters();
@@ -61,7 +69,15 @@ public class Options {
 		EVENTS_VAR_RATE           = params.getDouble("EVENTS_VAR_RATE");
 		DROPPED_RATE              = params.getDouble("DROPPED_RATE");
 		DEATH_RATE                = params.getDouble("DEATH_RATE");
-		EXPECTED_TIME_STABLE_TIME = params.getDouble("EXPECTED_TIME_STABLE_TIME");
+		EXPECTED_STABLE_TIME 	  = params.getDouble("EXPECTED_STABLE_TIME");
 		K                         = params.getDouble("K");
+		
+		EVENTS_OPTIMIZATION_FIRST  = params.getString("EVENTS_OPTIMIZATION_FIRST").toUpperCase();
+		EVENTS_OPTIMIZATION_SECOND = params.getString("EVENTS_OPTIMIZATION_SECOND").toUpperCase();
+		
+		EVENT_IDS_OPTIMIZATION_FIRST  = params.getString("EVENT_IDS_OPTIMIZATION_FIRST").toUpperCase();
+		EVENT_IDS_OPTIMIZATION_SECOND = params.getString("EVENT_IDS_OPTIMIZATION_SECOND").toUpperCase();
+		
+		SUBS_OPTIMIZATION = params.getBoolean("SUBS_OPTIMIZATION");
 	}
 }

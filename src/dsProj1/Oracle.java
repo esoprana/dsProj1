@@ -4,12 +4,15 @@ package dsProj1;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 // Standard libraries
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
@@ -48,23 +51,30 @@ public class Oracle {
 		received.putIfAbsent(node, new HashMap<>());
 		
 		HashMap<Long, Long> mapOfNode = received.get(node);
-		mapOfNode.putIfAbsent((Long) ev.data, 0L);
 		
-		Long w = mapOfNode.get((Long) ev.data);
-		w++;
+		Long dataId = (Long) ev.data;
+		
+		mapOfNode.put(dataId, mapOfNode.getOrDefault(dataId, 0L)+1);
 	}
-	/*
-	public void getStat() {
-		HashSet<Long> data = new HashSet(); 
-		
-		this.received.values().flatM
-		forEach(e -> {
-			e.keySet().
-		});
-		for (HashMap<Long, Long> m : this.received) {
-			for ()
+	
+	public String getStat() throws IOException {
+		java.io.File file = new java.io.File("stat.csv");
+		java.io.FileWriter writer = new java.io.FileWriter(file, false);
+
+		Set<Long> data = this.received.values().stream().flatMap(v -> v.keySet().stream()).collect(Collectors.toSet());
+
+		String r = "";
+
+		for (Map.Entry<UUID, HashMap<Long, Long>> e : this.received.entrySet()) {
+			for (Long w : data) {
+				writer.write(e.getKey() + ", " + w + ", " + e.getValue().getOrDefault(w, 0L) + "\n");
+			}
 		}
-	}*/
+		
+		writer.flush();
+
+		return r;
+	}
 	
 	private static double normal(double mean, double var) {
 		return RandomHelper.createNormal(mean, var)
@@ -85,8 +95,7 @@ public class Oracle {
 	}
 	
 	public void scheduleGossip(double delay, @NonNull Message<RoundStart> dg) {
-		// TODO: Add clock drift?
-		double delayTo = normalCut(delay, delay*Options.DRIFT_PER_SECOND);
+		double delayTo = delay; //normalCut(delay, delay*Options.DRIFT_PER_SECOND);
 		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, dg));
 	}
 	
@@ -114,7 +123,10 @@ public class Oracle {
 	
 	private void schedule() {
 		// Update time to new schedule time
-		this.lastScheduling+=1.;
+		this.lastScheduling+=Options.GOSSIP_INTERVAL;
+		
+		System.out.println("@" + this.currentSeconds);
+		System.out.println("EXT_DATA: " + this.messages.stream().filter(m -> m.message.data instanceof ExternalData).count());
 
 		// Get all nodes
 		Context ctx = ContextUtils.getContext(this);
@@ -131,9 +143,10 @@ public class Oracle {
 				  .forEach( n -> n.alive = false);
 		
 		// Create new events
-		cern.jet.random.Uniform u = RandomHelper.createUniform(0, 1);
+		cern.jet.random.Uniform u = RandomHelper.createUniform(0, Options.GOSSIP_INTERVAL);
 		
 		long tot_events = Math.round(normalCut(Options.EVENTS_RATE, Options.EVENTS_VAR_RATE));
+		System.out.println(tot_events);
 		ArrayList<Double> exData = new ArrayList<Double>((int) tot_events);
 
 		for (int i=0; i<tot_events; ++i) {
@@ -143,6 +156,7 @@ public class Oracle {
 		exData.stream().sorted().map((Double t) -> {
 			Node node = nodes.get(RandomHelper.nextIntFromTo(0, nodes.size()-1));
 			Message msg = new Message<ExternalData<?>>(node.id, node.id, new ExternalData<>(++this.nData));
+			//System.out.println(this.nData);
 			
 			return new Timestamped(t, msg);
 		}).forEach(this.messages::add);
@@ -185,7 +199,6 @@ public class Oracle {
 		if (msg.message.data instanceof Event || 
 			msg.message.data instanceof RetrieveMessage || 
 			msg.message.data instanceof Gossip) {
-			System.out.println(msg.message.data.getClass());
 			if (RandomHelper.nextDouble() <= Options.DROPPED_RATE) {
 				toBeReceived = false;
 			}
@@ -197,7 +210,7 @@ public class Oracle {
 
 		this.updateView(msg, toBeReceived);
 		
-		if (messages.isEmpty() || this.lastScheduling + 1 <= messages.first().timestamp) {
+		if (messages.isEmpty() || this.lastScheduling + Options.GOSSIP_INTERVAL <= messages.first().timestamp) {
 			this.schedule();
 		}
 	}
@@ -241,7 +254,7 @@ public class Oracle {
 	 	      });
 		
 		// - Message network
-		networkMessage.addEdge(new MessageEdge(source, destination, msg.message, toBeReceived?3:1));
+		networkMessage.addEdge(new MessageEdge(source, destination, msg.message, toBeReceived?1:0));
 	}
 
 	public void init(Context ctx) {
@@ -255,6 +268,6 @@ public class Oracle {
 			this.scheduleGossip(0, new Message<>(n.id, n.id, new RoundStart()));
 		});		
 
-		this.death_rate_per_second = 1-inversePCDF(1 - Options.DEATH_RATE, (int) Options.EXPECTED_TIME_STABLE_TIME-1);
+		this.death_rate_per_second = 1-inversePCDF(1 - Options.DEATH_RATE, (int) Options.EXPECTED_STABLE_TIME-1);
 	}
 }

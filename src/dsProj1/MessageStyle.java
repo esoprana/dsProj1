@@ -25,7 +25,6 @@ public class MessageStyle extends repast.simphony.visualizationOGL2D.DefaultEdge
 		} else if (e.message.data instanceof Event) {
 			hue = 120./360.; // Green hue
 		} else {
-			System.err.println(e.message.data.getClass());
 			return Color.RED; // If there is some problem with the visualization use red
 		}
 		

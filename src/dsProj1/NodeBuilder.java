@@ -60,10 +60,17 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			// Randomize position of nodes ids in nodes_uuid_copy
 			Collections.shuffle(nodes_uuid_copy);
 			
+			UUID currentNode = nodes.get(i);
+			
+			List<UUID> tmp = new ArrayList<UUID>(nodes_uuid_copy.subList(0, (int) Math.round(Options.INITIAL_VIEW_PERC * Options.VIEWS_SIZE+1)));
+			if (tmp.contains(currentNode)) {
+				tmp.remove(currentNode);
+			} else {
+				tmp.remove(tmp.size()-1);
+			}
+
 			// Create node with random connections (of size VIEWS_SIZE) and add it to the context
-			Node n = new Node(nodes.get(i), 
-							  nodes_uuid_copy.subList(0, (int) Math.round(Options.INITIAL_VIEW_PERC * Options.VIEWS_SIZE)), // copy is done on Node's side
-							  oracle);
+			Node n = new Node(currentNode, tmp, oracle);  // copy is done on Node's side
 			context.add(n);
 		}
 		
