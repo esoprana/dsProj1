@@ -1,5 +1,7 @@
 package dsProj1;
 
+import java.io.File;
+
 // Support libraries
 import repast.simphony.engine.environment.RunEnvironment;
 import repast.simphony.parameter.Parameters;
@@ -32,7 +34,7 @@ public class Options {
 	static double EVENTS_VAR_RATE;
 	
 	static double DROPPED_RATE;
-	static double DEATH_RATE;
+	static double DEATH_RATE_PER_SECOND;
 	static double EXPECTED_STABLE_TIME;
 
 	static double K;
@@ -44,6 +46,10 @@ public class Options {
 	static String EVENT_IDS_OPTIMIZATION_SECOND;
 	
 	static boolean SUBS_OPTIMIZATION;
+	
+	static String OUTPUT_FOLDER;
+	
+	static String RETRIEVE_METHOD;
 	
 	static void load() {
 		Parameters  params = RunEnvironment.getInstance().getParameters();
@@ -68,8 +74,6 @@ public class Options {
 		EVENTS_RATE               = params.getDouble("EVENTS_RATE");
 		EVENTS_VAR_RATE           = params.getDouble("EVENTS_VAR_RATE");
 		DROPPED_RATE              = params.getDouble("DROPPED_RATE");
-		DEATH_RATE                = params.getDouble("DEATH_RATE");
-		EXPECTED_STABLE_TIME 	  = params.getDouble("EXPECTED_STABLE_TIME");
 		K                         = params.getDouble("K");
 		
 		EVENTS_OPTIMIZATION_FIRST  = params.getString("EVENTS_OPTIMIZATION_FIRST").toUpperCase();
@@ -78,6 +82,21 @@ public class Options {
 		EVENT_IDS_OPTIMIZATION_FIRST  = params.getString("EVENT_IDS_OPTIMIZATION_FIRST").toUpperCase();
 		EVENT_IDS_OPTIMIZATION_SECOND = params.getString("EVENT_IDS_OPTIMIZATION_SECOND").toUpperCase();
 		
+		RETRIEVE_METHOD = params.getString("RETRIEVE_METHOD").toUpperCase();
+		OUTPUT_FOLDER = params.getString("OUTPUT_FOLDER");
+		if (OUTPUT_FOLDER.endsWith(File.separator))
+			OUTPUT_FOLDER.substring(0, OUTPUT_FOLDER.length()-1);
+		OUTPUT_FOLDER = OUTPUT_FOLDER + new repast.simphony.batch.ssh.DefaultOutputPatternCreator("", true).getFileSinkOutputPattern().getPath();
+		OUTPUT_FOLDER = OUTPUT_FOLDER.endsWith(java.io.File.separator)? OUTPUT_FOLDER : OUTPUT_FOLDER + java.io.File.separator;
+		System.out.println(OUTPUT_FOLDER);
+		
 		SUBS_OPTIMIZATION = params.getBoolean("SUBS_OPTIMIZATION");
+		
+		{
+			double STAY_ALIVE           = 1. - params.getDouble("DEATH_RATE");
+			double EXPECTED_STABLE_TIME = params.getDouble("EXPECTED_STABLE_TIME") - 1.;
+			
+			DEATH_RATE_PER_SECOND = 1. - Math.pow(STAY_ALIVE, 1./EXPECTED_STABLE_TIME);
+		}
 	}
 }

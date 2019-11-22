@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 
 // Repast libraries
 import repast.simphony.context.Context;
+import repast.simphony.engine.environment.RunEnvironment;
+import repast.simphony.engine.environment.RunListener;
 import repast.simphony.engine.schedule.ScheduledMethod;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.graph.Network;
@@ -39,12 +41,20 @@ public class Oracle {
 	public double lastScheduling = 0;
 	
 	private long nData = 0;
-	private double death_rate_per_second;
 	
-	private double inversePCDF(double p, int pass) {
-		return Math.pow(p, 1./( (double) pass ));
+	private static double normal(double mean, double var) {
+		return RandomHelper.createNormal(mean, var)
+		 				   .apply(RandomHelper.nextDoubleFromTo(0, 1));
 	}
 	
+	private static double normalCut(double mean, double var) {
+		double ris = normal(mean, var);
+
+		return ris < 0?0:ris;
+	}
+	
+	
+	/*
 	private HashMap<UUID, HashMap<Long, Long>> received = new HashMap<>();
 	
 	public void stat(UUID node, Event ev) {
@@ -74,18 +84,7 @@ public class Oracle {
 		writer.flush();
 
 		return r;
-	}
-	
-	private static double normal(double mean, double var) {
-		return RandomHelper.createNormal(mean, var)
-		 				   .apply(RandomHelper.nextDoubleFromTo(0, 1));
-	}
-	
-	private static double normalCut(double mean, double var) {
-		double ris = normal(mean, var);
-
-		return ris < 0?0:ris;
-	}
+	}*/
 	
 	@NonNull TreeSet<@NonNull Timestamped<Message<?>>> messages = new TreeSet<@NonNull Timestamped<Message<?>>>();
 	
@@ -99,13 +98,13 @@ public class Oracle {
 		messages.add(new Timestamped<Message<?>>(currentSeconds+delayTo, dg));
 	}
 	
-	private @Nullable Node getNode(@NonNull UUID id) {
+	private @Nullable NodeStat getNodeStat(@NonNull UUID id) {
 		Context context = ContextUtils.getContext(this);
-		for(Object o : context.getObjects(Node.class)) {
-			Node n = (Node) o;
+		for(Object o : context.getObjects(NodeStat.class)) {
+			NodeStat ns = (NodeStat) o;
 			
-			if (n.id.equals(id))
-				return n;
+			if (ns.getId().equals(id))
+				return ns;
 		}
 
 		return null;
@@ -122,11 +121,13 @@ public class Oracle {
 	}
 	
 	private void schedule() {
+		Context c = ContextUtils.getContext(this);
+		c.getObjects(NodeStat.class).forEach(ns -> ((NodeStat)ns).writeAll());
+		
 		// Update time to new schedule time
 		this.lastScheduling+=Options.GOSSIP_INTERVAL;
 		
 		System.out.println("@" + this.currentSeconds);
-		System.out.println("EXT_DATA: " + this.messages.stream().filter(m -> m.message.data instanceof ExternalData).count());
 
 		// Get all nodes
 		Context ctx = ContextUtils.getContext(this);
@@ -136,17 +137,15 @@ public class Oracle {
 		}
 
 		List<Node> aliveNodes = nodes.stream().filter(n -> n.alive).collect(Collectors.toCollection(ArrayList<Node>::new));
-		//System.out.println("Alive@" + this.currentSeconds + ": " + aliveNodes.size());
 		
 		aliveNodes.stream()
-				  .filter( n -> RandomHelper.nextDoubleFromTo(0, 1) <= this.death_rate_per_second)
+				  .filter( n -> RandomHelper.nextDoubleFromTo(0, 1) < Options.DEATH_RATE_PER_SECOND)
 				  .forEach( n -> n.alive = false);
 		
 		// Create new events
 		cern.jet.random.Uniform u = RandomHelper.createUniform(0, Options.GOSSIP_INTERVAL);
 		
 		long tot_events = Math.round(normalCut(Options.EVENTS_RATE, Options.EVENTS_VAR_RATE));
-		System.out.println(tot_events);
 		ArrayList<Double> exData = new ArrayList<Double>((int) tot_events);
 
 		for (int i=0; i<tot_events; ++i) {
@@ -156,17 +155,13 @@ public class Oracle {
 		exData.stream().sorted().map((Double t) -> {
 			Node node = nodes.get(RandomHelper.nextIntFromTo(0, nodes.size()-1));
 			Message msg = new Message<ExternalData<?>>(node.id, node.id, new ExternalData<>(++this.nData));
-			//System.out.println(this.nData);
 			
 			return new Timestamped(t, msg);
 		}).forEach(this.messages::add);
 	}
 	
 	@ScheduledMethod(start = 1, interval = 1)
-	public void step() throws Exception {
-		// Print what you are about to do (debugging purposes)
-		//System.out.println(this.currentTask());
-		
+	public void step() throws Exception {	
 		@Nullable Timestamped<Message<?>> msg = messages.pollFirst();
 		
 		// If nothing is scheduled something bad happened (there should be at least some periodic event)
@@ -178,8 +173,8 @@ public class Oracle {
 		
 		this.currentSeconds = msg.timestamp;
 
-		Node sender = this.getNode(msg.message.source);
-		Node destination = this.getNode(msg.message.destination);		
+		NodeStat sender = this.getNodeStat(msg.message.source);
+		NodeStat destination = this.getNodeStat(msg.message.destination);		
 
 		// If there is no destination something bad happened (the node should never be removed from the context, use DEAD status instead)
 		if (destination == null) {
@@ -191,7 +186,7 @@ public class Oracle {
 		boolean toBeReceived = true;
 		
 		// If destination is dead, update the view and exit immediately (do not use any handle)
-		if (!destination.alive) {
+		if (!destination.getNode().alive) {
 			toBeReceived = false;
 		}
 		
@@ -199,7 +194,7 @@ public class Oracle {
 		if (msg.message.data instanceof Event || 
 			msg.message.data instanceof RetrieveMessage || 
 			msg.message.data instanceof Gossip) {
-			if (RandomHelper.nextDouble() <= Options.DROPPED_RATE) {
+			if (RandomHelper.nextDouble() < Options.DROPPED_RATE) {
 				toBeReceived = false;
 			}
 		}
@@ -217,8 +212,8 @@ public class Oracle {
 	
 	public void updateView(Timestamped<Message<?>> msg, boolean toBeReceived) {
 		// Get source and destination (if scheduled event of node, source and destination are the same)
-		Node source = this.getNode(msg.message.source);
-		Node destination = this.getNode(msg.message.destination);
+		NodeStat source = this.getNodeStat(msg.message.source);
+		NodeStat destination = this.getNodeStat(msg.message.destination);
 		
 		// If source or destination are null, log and exit function
 		if (source == null) {
@@ -247,14 +242,15 @@ public class Oracle {
 			nodes.put(n.id, n);
 		});
 		
-		source.view
+		source.getNode()
+			  .view
 	 	      .stream()
 	 	      .forEach( (Frequency<UUID> v) -> {
-		 	    	 networkView.addEdge(source, nodes.get(v.data), v.frequency + 1.); // Show frequency using width
+		 	    	 networkView.addEdge(source.getNode(), nodes.get(v.data), v.frequency + 1.); // Show frequency using width
 	 	      });
 		
 		// - Message network
-		networkMessage.addEdge(new MessageEdge(source, destination, msg.message, toBeReceived?1:0));
+		networkMessage.addEdge(new MessageEdge(source.getNode(), destination.getNode(), msg.message, toBeReceived?1:0));
 	}
 
 	public void init(Context ctx) {
@@ -267,7 +263,5 @@ public class Oracle {
 		nodes.stream().forEach( (Node n) -> {
 			this.scheduleGossip(0, new Message<>(n.id, n.id, new RoundStart()));
 		});		
-
-		this.death_rate_per_second = 1-inversePCDF(1 - Options.DEATH_RATE, (int) Options.EXPECTED_STABLE_TIME-1);
 	}
 }

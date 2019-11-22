@@ -1,5 +1,6 @@
 package dsProj1;
 
+import java.io.IOException;
 // Standard libraries
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,9 +13,11 @@ import repast.simphony.context.space.continuous.ContinuousSpaceFactory;
 import repast.simphony.context.space.continuous.ContinuousSpaceFactoryFinder;
 import repast.simphony.context.space.graph.NetworkBuilder;
 import repast.simphony.dataLoader.ContextBuilder;
+import repast.simphony.engine.environment.RunEnvironment;
+import repast.simphony.engine.environment.RunListener;
 import repast.simphony.space.continuous.ContinuousSpace;
 import repast.simphony.space.continuous.RandomCartesianAdder;
-
+import repast.simphony.util.ContextUtils;
 // Custom libraries
 import dsProj1.msg.Message;
 import dsProj1.msg.data.RoundStart;
@@ -22,10 +25,6 @@ import dsProj1.msg.data.RoundStart;
 
 public class NodeBuilder implements ContextBuilder<Object> {
 
-	/* (non-Javadoc)
-	 * @see repast.simphony.dataLoader.ContextBuilder
-	 * #build(repast.simphony.context.Context)
-	 */
 	@Override
 	public Context<Object> build(Context<Object> context) {
 		// Set id of context
@@ -70,8 +69,9 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			}
 
 			// Create node with random connections (of size VIEWS_SIZE) and add it to the context
-			Node n = new Node(currentNode, tmp, oracle);  // copy is done on Node's side
+			Node n = new Node(currentNode, tmp);  // copy is done on Node's side
 			context.add(n);
+			context.add(n.ns);
 		}
 		
 		oracle.init(context);
@@ -82,7 +82,31 @@ public class NodeBuilder implements ContextBuilder<Object> {
 		NetworkBuilder messageBuilder = new NetworkBuilder("message", context, true);
 		messageBuilder.buildNetwork();
 	    
-		// TODO: Auto-generated method stub
+		RunEnvironment.getInstance().addRunListener(new RunListener() {
+			@Override
+			public void stopped() {
+				context.getObjects(NodeStat.class).forEach(ns -> ((NodeStat)ns).writeAll());
+				NodeStat.writeDead(context);
+				
+				/*
+				try {
+					oracle.getStat();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}*/
+			}
+
+			@Override
+			public void paused() {}
+
+			@Override
+			public void started() {}
+
+			@Override
+			public void restarted() {}
+		});
+		
 		return context;
 	}
 }

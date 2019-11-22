@@ -26,11 +26,10 @@ import dsProj1.msg.data.Gossip;
 import dsProj1.msg.data.RetrieveMessage;
 
 public class Node {
-	private final @NonNull Oracle oracle;
+	public final @NonNull NodeStat ns;
 
 	public Node(@NonNull UUID id, 
-				@NonNull Collection<@NonNull UUID> initialView, 
-				@NonNull Oracle oracle) {
+				@NonNull Collection<@NonNull UUID> initialView) {
 		if (initialView.size() > Options.VIEWS_SIZE) {
 			throw new IllegalArgumentException("initialView parameter can't be larger than " + Options.VIEWS_SIZE);
 		}
@@ -38,7 +37,7 @@ public class Node {
 		this.id = id;
 		initialView.stream().map((UUID node) -> new Frequency(node)).forEach(this.view::add);
 
-		this.oracle = oracle;
+		this.ns = new NodeStat(this);
 	}
 	
 	// TODO: Fare diagrammi articolo + magari qualcosina
@@ -50,14 +49,14 @@ public class Node {
 	private @NonNull List<@NonNull ToRetrieveEv> retrieveBuf = new ArrayList<@NonNull ToRetrieveEv>();  // Events to be retrieved
 
 	private @NonNull List<@NonNull Event> events = new ArrayList<@NonNull Event>(2*Options.EVENTS_SIZE);
-	
-	private @NonNull List<@NonNull Event> localEvents = new ArrayList<@NonNull Event>();
+		
+	private @NonNull List<@NonNull Event> localEvents = new ArrayList<@NonNull Event>((int) (2*Options.EVENTS_RATE));
 	
 	public @NonNull UUID id;
 	private long nextEventId = 0;
 
 	public boolean alive = true;
-	private long currentRound = 1;
+	public long currentRound = 1;
 	
 	public static <T> Frequency<T> selectProcess(List<Frequency<T>> l) {
 		double avg = ((double) l.stream().collect(Collectors.summingLong(w -> w.frequency))) / ((double) l.size());
@@ -266,6 +265,7 @@ public class Node {
 		while (this.events.size() > Options.EVENTS_SIZE) {
 			if (Options.EVENTS_OPTIMIZATION_SECOND.equals("TIMESTAMP")) {
 				// --- TIMESTAMP METHOD
+				System.out.println("Timestamp  events");
 				Event e = this.events.stream()
 						 .collect(Collectors.minBy(Comparator.comparing((Event ev) -> ev.eventId.timestamp)))
 						 .get();
@@ -274,13 +274,15 @@ public class Node {
 			} else {
 				if (Options.EVENTS_OPTIMIZATION_SECOND.equals("AGE")) {
 					// --- AGE METHOD
+					System.out.println("Age  events");
 					Event e = this.events.stream()
-							 .collect(Collectors.minBy(Comparator.comparing((Event ev) -> ev.age)))
+							 .collect(Collectors.maxBy(Comparator.comparing((Event ev) -> ev.age)))
 							 .get();
 
 					this.events.remove(e);
 				} else { // Options.EVENTS_OPTIMIZATION_SECOND.equals("RANDOM")
 					// --- RANDOM METHOD
+					System.out.println("Random events");
 					this.events.remove(RandomHelper.nextIntFromTo(0, this.events.size()-1));
 				}
 			}
@@ -292,10 +294,10 @@ public class Node {
 			this.startRound();
 		} else if (msg.data instanceof ExternalData) {
 			Event e = new Event<>(this.id, this.nextEventId++, ((ExternalData) msg.data).data);
-			e.eventId.timestamp = this.oracle.currentSeconds;
+			e.eventId.timestamp = this.ns.getCurrentTimestamp();
 			
 			this.lpbCast(e);
-			this.oracle.stat(this.id, e);
+			this.ns.stat(e);
 		} else if (msg.data instanceof Gossip) {
 			this.handleGossip(msg);
 		} else if (msg.data instanceof Event) {
@@ -308,6 +310,13 @@ public class Node {
 	}
 	
 	private void handleGossip(@NonNull Message<Gossip> g) {
+		// PHASE 0: Cleanup
+		// Remove data if it's about us
+		g.data.events.removeIf(e -> e.eventId.source.equals(this.id));
+		g.data.eventIds.removeIf(e -> e.source.equals(this.id));
+		g.data.subs.remove(this.id);
+		g.data.unSubs.remove(this.id);
+		
 		// PHASE 1: UPDATE VIEW AND UNSUBS
 		// First let's convert subs in a list with frequencies
 		List<Frequency<UUID>> newSubs = g.data.subs
@@ -315,8 +324,8 @@ public class Node {
 											  .map(u -> new Frequency<>(u))
 											  .collect(Collectors.toCollection(ArrayList<Frequency<UUID>>::new));
 		
-		this.view.removeAll(newSubs); // Remove all gossip unsubs from global view
-		this.subs.removeAll(newSubs); // Remove all gossip unsubs from global subs
+		this.view.removeIf(f -> g.data.unSubs.contains(f.data)); // Remove all gossip unsubs from global view
+		this.subs.removeIf(f -> g.data.unSubs.contains(f.data)); // Remove all gossip unsubs from global subs
 		
 		g.data.unSubs.stream()
 				     .filter((UUID it) -> !this.unSubs.contains(it)) // Remove already contained
@@ -380,8 +389,8 @@ public class Node {
 			shuffleTrim(this.subs, Options.SUBS_SIZE);
 		}
 		
-		// PHASE 3: UPDATE EVENTS WITH NEW NOTIFICATIONS
-		// Update ages
+		// PHASE 3: UPDATE EVENTS WITH NEW NOTIFICATIONS	
+		// Update ages	
 		g.data.events
 			  .stream()
 			  .forEach((Event e) -> {
@@ -392,7 +401,7 @@ public class Node {
 				  }
 				  
 				  Event found = this.events.get(idx);
-				  found.age = Math.min(found.age, e.age);
+				  found.age = Math.max(found.age, e.age);
 			  });
 		
 		// Handle all new events
@@ -448,22 +457,16 @@ public class Node {
 	}
 
 	private void send(@NonNull UUID destination, @NonNull Object data) {
-		this.oracle.send(new Message<>(this.id, destination, data));
+		this.ns.send(new Message<>(this.id, destination, data));
 	}
 
 	private void scheduleGossip(double delay) {
-		this.oracle.scheduleGossip(delay, new Message<RoundStart>(this.id, this.id, new RoundStart()));
+		this.ns.scheduleGossip(delay,  new Message<RoundStart>(this.id, this.id, new RoundStart()));
 	}
 	
 	public void lpbCast(@NonNull Event e) { // TODO: To integrate in some way with sending
-		// If the event was already (completely/in full) received ignore
-		if (this.events.contains(e))
-			return;
-
-		// Otherwise, add
-		this.events.add(e);
-
-		this.trimEvents();
+		this.ns.stat(e);
+		this.localEvents.add(e);
 	}
 
 	private void handleEvent(@NonNull Event ev) {
@@ -497,15 +500,11 @@ public class Node {
 		if (!oe.isPresent())
 			return;
 
-		System.err.println("FOUND!!!");
 		this.send(rm.source, oe.get());
-
-		// TODO: Should I respond instead? (I think so)
 	}
 
 	private void lpbDeliver(@NonNull Event ev) {
-		this.oracle.stat(this.id, ev);
-		//System.out.println("Node[" + this.id + "] received Event[" + ev.data + "]");
+		this.ns.stat(ev);
 	}
 
 	private Gossip emitGossip() {
@@ -521,11 +520,14 @@ public class Node {
 
 		// Add ourselves to the subs list (if there is enough space just add, otherwise substitute at random)
 		List<@NonNull UUID> s = this.subs.stream().map(f -> f.data).collect(Collectors.toCollection(ArrayList<UUID>::new));
-		if (s.size() < Options.SUBS_SIZE) // TODO: How to decide now?
+		if (s.size() < Options.SUBS_SIZE)
 			s.add(this.id);
 		else 
 			s.set(RandomHelper.nextIntFromTo(0, this.subs.size()-1), this.id);
 
+		this.events.addAll(this.localEvents);
+		this.localEvents.clear();
+		
 		// Create the gossip and sent it
 		Gossip g = new Gossip(s, this.unSubs, this.eventIds, this.events);
 		targets.forEach(t -> this.send(t.data, g));
@@ -549,68 +551,67 @@ public class Node {
 			} else if (this.eventIds.contains(el.eventId)) {
 				it.remove();
 			} else {
-				/*
-				switch(el.noRequests) {
-					case -1:
-						
-						List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
-						targets.add(el.sender);
-						while (targets.size() <= Math.min(this.view.size()-1, Options.FANOUT_SIZE)) {
-							UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1)).data;
-							
-							if (!targets.contains(w)) {
-								targets.add(w);
+				if (Options.RETRIEVE_METHOD.equals("MINE")) {
+					switch(el.noRequests) {
+						case -1:
+							List<@NonNull UUID> targets = new ArrayList<>(Options.FANOUT_SIZE);
+							targets.add(el.sender);
+							while (targets.size() <= Math.min(this.view.size()-1, Options.FANOUT_SIZE)) {
+								UUID w = this.view.get(RandomHelper.nextIntFromTo(0, this.view.size()-1)).data;
+								
+								if (!targets.contains(w)) {
+									targets.add(w);
+								}
 							}
-						}
-						
-						targets.forEach(k -> this.requestRetrieve(el.eventId, k));
-						el.noRequests++;
-						el.requestedAtRound = this.currentRound;
-						break;
-					case 0:
-						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							this.requestRetrieve(el.eventId, el.eventId.source); // How to get the source?
+							
+							targets.forEach(k -> this.requestRetrieve(el.eventId, k));
 							el.noRequests++;
 							el.requestedAtRound = this.currentRound;
-						}
-						break;
-					case 1:
-						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							// Packet is considered lost, log something and give up
-							//System.err.println("FAILURE!");
-							it.remove();
-						}
-						break;
-				}*/
-				
-				//System.err.println(this.oracle.currentSeconds + "[" + this.id + "] TRYING TO FIND " + el.eventId + " tentative " + el.noRequests);
-				switch(el.noRequests) {
-					case -1: // If is the first time this happens ask to who sent us the related gossip
-						this.requestRetrieve(el.eventId, el.sender);
-						el.noRequests++;
-						el.requestedAtRound = this.currentRound;
-						break;
-					case 0: // If it's the second time ask to a random node
-						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							this.requestRetrieve(el.eventId, this.view.get( RandomHelper.nextIntFromTo(0, this.view.size()-1) ).data);
+							break;
+						case 0:
+							if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+								this.requestRetrieve(el.eventId, el.eventId.source); // How to get the source?
+								el.noRequests++;
+								el.requestedAtRound = this.currentRound;
+							}
+							break;
+						case 1:
+							if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+								// Packet is considered lost, log something and give up
+								this.ns.retrieveFail(el.eventId);
+								it.remove();
+							}
+							break;
+					}
+				} else {
+					switch(el.noRequests) {
+						case -1: // If is the first time this happens ask to who sent us the related gossip
+							this.requestRetrieve(el.eventId, el.sender);
 							el.noRequests++;
 							el.requestedAtRound = this.currentRound;
-						}
-						break;
-					case 1: // If it's the third time ask source
-						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							this.requestRetrieve(el.eventId, el.eventId.source); // How to get the source?
-							el.noRequests++;
-							el.requestedAtRound = this.currentRound;
-						}
-						break;
-					case 2: // If 3° time failed just fail
-						if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
-							// Packet is considered lost, log something and give up
-							System.err.println("FAILURE!");
-							it.remove();
-						}
-						break;
+							break;
+						case 0: // If it's the second time ask to a random node
+							if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+								this.requestRetrieve(el.eventId, this.view.get( RandomHelper.nextIntFromTo(0, this.view.size()-1) ).data);
+								el.noRequests++;
+								el.requestedAtRound = this.currentRound;
+							}
+							break;
+						case 1: // If it's the third time ask source
+							if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+								this.requestRetrieve(el.eventId, el.eventId.source); // How to get the source?
+								el.noRequests++;
+								el.requestedAtRound = this.currentRound;
+							}
+							break;
+						case 2: // If 3° time failed just fail
+							if (this.currentRound >= el.requestedAtRound + Options.REQUEST_TIMEOUT_ROUNDS ) {
+								// Packet is considered lost, log something and give up
+								this.ns.retrieveFail(el.eventId);
+								it.remove();
+							}
+							break;
+					}
 				}
 			}
 		}
