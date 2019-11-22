@@ -3,12 +3,19 @@
 	<!--  Simulator parameters -->
 	<parameter
 		name="fake1"
-		displayName="0******** SIMULATOR PARAMETERS ******"
+		displayName="0*********************************************"
 		type="java.lang.String"
-		defaultValue=""
+		defaultValue="******* SIMULATOR PARAMETERS *******"
 		isReadOnly="true"
 		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
 	
+	<parameter
+		name="OUTPUT_FOLDER"
+		displayName="00 - Output folder for data OUTPUT_FOLDER"
+		type="java.lang.String"
+		defaultValue="./output"
+		isReadOnly="false"
+		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
 	<parameter
 		name="NODE_COUNT"
 		displayName="000 - Number of nodes (NODE_COUNT)"
@@ -83,9 +90,9 @@
 	<!-- Node options -->	
 	<parameter
 		name="fake2"
-		displayName="1************** NODE OPTIONS ************"
+		displayName="1**********************************************"
 		type="java.lang.String"
-		defaultValue=""
+		defaultValue="************* NODE OPTIONS *************"
 		isReadOnly="true"
 		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
 	
@@ -207,13 +214,22 @@
 		defaultValue="3"
 		isReadOnly="false"
 		converter="repast.simphony.parameter.StringConverterFactory$LongConverter" />
+		
+	<parameter
+		name="RETRIEVE_METHOD"
+		displayName="115 - Retrieve method(RETRIEVE_METHOD)"
+		type="java.lang.String"
+		defaultValue="PAPER"
+		isReadOnly="false"
+		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"
+		values="MINE PAPER " />
 	
 	<!-- Roba di repast -->
 	<parameter
 		name="fake2"
-		displayName="2************* REPAST OPTIONS ***********"
+		displayName="2**********************************************"
 		type="java.lang.String"
-		defaultValue=""
+		defaultValue="************ REPAST OPTIONS ************"
 		isReadOnly="true"
 		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
 	
