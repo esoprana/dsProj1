@@ -39,9 +39,7 @@ public class Node {
 
 		this.ns = new NodeStat(this);
 	}
-	
-	// TODO: Fare diagrammi articolo + magari qualcosina
-	
+		
 	@NonNull List<@NonNull Frequency<UUID>> view = new ArrayList<@NonNull Frequency<UUID>>(2*Options.VIEWS_SIZE);              					   // Individual view // TODO: Fix permission(package -> private)
 	private @NonNull List<@NonNull UUID> unSubs = new ArrayList<@NonNull UUID>(2*Options.UN_SUBS_SIZE);  // Un-subscriptions
 	private @NonNull List<@NonNull Frequency<UUID>> subs = new ArrayList<@NonNull Frequency<UUID>>(2*Options.SUBS_SIZE);       // Subscriptions
@@ -59,15 +57,19 @@ public class Node {
 	public long currentRound = 1;
 	
 	public static <T> Frequency<T> selectProcess(List<Frequency<T>> l) {
-		double avg = ((double) l.stream().collect(Collectors.summingLong(w -> w.frequency))) / ((double) l.size());
-		
-		while (true) {
-			Frequency<T> target = l.get(RandomHelper.nextIntFromTo(0, l.size()-1));
-		
-			if (target.frequency > Options.K * avg)
-				return target;
-			else
-				++target.frequency;
+		if (Options.SUBS_OPTIMIZATION) {
+			double avg = ((double) l.stream().collect(Collectors.summingLong(w -> w.frequency))) / ((double) l.size());
+			
+			while (true) {
+				Frequency<T> target = l.get(RandomHelper.nextIntFromTo(0, l.size()-1));
+			
+				if (target.frequency > Options.K * avg)
+					return target;
+				else
+					++target.frequency;
+			}
+		} else {
+			return l.get(RandomHelper.nextIntFromTo(0, l.size()-1));
 		}
 	}
 	
@@ -265,7 +267,6 @@ public class Node {
 		while (this.events.size() > Options.EVENTS_SIZE) {
 			if (Options.EVENTS_OPTIMIZATION_SECOND.equals("TIMESTAMP")) {
 				// --- TIMESTAMP METHOD
-				System.out.println("Timestamp  events");
 				Event e = this.events.stream()
 						 .collect(Collectors.minBy(Comparator.comparing((Event ev) -> ev.eventId.timestamp)))
 						 .get();
@@ -274,7 +275,6 @@ public class Node {
 			} else {
 				if (Options.EVENTS_OPTIMIZATION_SECOND.equals("AGE")) {
 					// --- AGE METHOD
-					System.out.println("Age  events");
 					Event e = this.events.stream()
 							 .collect(Collectors.maxBy(Comparator.comparing((Event ev) -> ev.age)))
 							 .get();
@@ -282,7 +282,6 @@ public class Node {
 					this.events.remove(e);
 				} else { // Options.EVENTS_OPTIMIZATION_SECOND.equals("RANDOM")
 					// --- RANDOM METHOD
-					System.out.println("Random events");
 					this.events.remove(RandomHelper.nextIntFromTo(0, this.events.size()-1));
 				}
 			}
@@ -337,39 +336,26 @@ public class Node {
 		// PHASE 2: ADD NEW SUBSCRIPTIONS	
 		if (Options.SUBS_OPTIMIZATION) {
 			newSubs.forEach(m -> {
-				int idx = this.view.indexOf(m);
+				int idx1 = this.view.indexOf(m);
+								
+				if (idx1 != -1) {
+					Frequency<UUID> m_ = this.view.get(idx1);
+					m_.frequency++;
+				} else {
+					m.frequency++;
+					this.view.add(m);
+				}
 				
-				Frequency<UUID> m_ = idx != -1? this.view.get(idx) : m;
-				
-				if (idx == -1) 
-					this.view.add(m_);
-
-				++m_.frequency;
+				int idx2 = this.subs.indexOf(m);
+								
+				if (idx2 != -1) {
+					Frequency<UUID> m__ = this.subs.get(idx2);
+					m__.frequency++;
+				} else {
+					m.frequency++;
+					this.subs.add(m);
+				}
 			});
-			
-			newSubs.forEach(m -> {
-				int idx = this.subs.indexOf(m);
-				
-				Frequency<UUID> m_ = idx != -1? this.subs.get(idx) : m;
-				
-				if (idx == -1) 
-					this.subs.add(m_);
-
-				++m_.frequency;				
-			});
-			
-			while (this.view.size() > Options.VIEWS_SIZE) {
-				Frequency<UUID> target = selectProcess(this.view);
-				this.view.remove(target);
-				
-				if (!this.subs.contains(target))
-					this.subs.add(target);
-			}
-			
-			while (this.subs.size() > Options.SUBS_SIZE) {
-				Frequency<UUID> target = selectProcess(this.subs);
-				subs.remove(target);
-			}
 		} else {
 			newSubs.stream()
 		  	   .filter((Frequency<UUID> it) -> !this.view.contains(it) && !it.equals(this.id))
@@ -378,15 +364,19 @@ public class Node {
 				 
 				   this.view.add(it);
 		  	   });
-
-			if (this.view.size() > Options.VIEWS_SIZE) {
-				Collections.shuffle(this.view);
-				List<Frequency<UUID>> t = this.view.subList(Options.VIEWS_SIZE, this.view.size());
-				this.subs.removeAll(t);
-				t.clear();
-			}
-
-			shuffleTrim(this.subs, Options.SUBS_SIZE);
+		}
+		
+		while (this.view.size() > Options.VIEWS_SIZE) {
+			Frequency<UUID> target = selectProcess(this.view);
+			this.view.remove(target);
+			
+			if (!this.subs.contains(target))
+				this.subs.add(target);
+		}
+		
+		while (this.subs.size() > Options.SUBS_SIZE) {
+			Frequency<UUID> target = selectProcess(this.subs);
+			subs.remove(target);
 		}
 		
 		// PHASE 3: UPDATE EVENTS WITH NEW NOTIFICATIONS	
@@ -420,7 +410,7 @@ public class Node {
 				  this.retrieveBuf.add(k);
 				  
 			  });
-				
+
 		Map<UUID, Optional<@NonNull EventId>> evs = this.eventIds.stream()
 					 											 .collect(
 					 													Collectors.groupingBy( (EventId e) -> e.source,		 
@@ -546,9 +536,9 @@ public class Node {
 		while (it.hasNext()) {
 			ToRetrieveEv el = it.next();
 			
-			if (this.currentRound - el.round <= Options.OLD_TIME_RETRIEVE) {
+			if (el.noRequests == -1 && this.currentRound - el.round < Options.OLD_TIME_RETRIEVE) {
 				// If it's still too early, don't worry
-			} else if (this.eventIds.contains(el.eventId)) {
+			} else if (el.noRequests == -1 && this.eventIds.contains(el.eventId)) {
 				it.remove();
 			} else {
 				if (Options.RETRIEVE_METHOD.equals("MINE")) {

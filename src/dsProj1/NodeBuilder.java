@@ -15,6 +15,7 @@ import repast.simphony.context.space.graph.NetworkBuilder;
 import repast.simphony.dataLoader.ContextBuilder;
 import repast.simphony.engine.environment.RunEnvironment;
 import repast.simphony.engine.environment.RunListener;
+import repast.simphony.random.RandomHelper;
 import repast.simphony.space.continuous.ContinuousSpace;
 import repast.simphony.space.continuous.RandomCartesianAdder;
 import repast.simphony.util.ContextUtils;
@@ -55,18 +56,27 @@ public class NodeBuilder implements ContextBuilder<Object> {
 		
 		ArrayList<UUID> nodes_uuid_copy = new ArrayList<UUID>(nodes);
 		
+		int start = 0;
 		for (int i = 0; i< nodeCount; i++) {
 			// Randomize position of nodes ids in nodes_uuid_copy
-			Collections.shuffle(nodes_uuid_copy);
 			
 			UUID currentNode = nodes.get(i);
 			
-			List<UUID> tmp = new ArrayList<UUID>(nodes_uuid_copy.subList(0, (int) Math.round(Options.INITIAL_VIEW_PERC * Options.VIEWS_SIZE+1)));
-			if (tmp.contains(currentNode)) {
-				tmp.remove(currentNode);
-			} else {
-				tmp.remove(tmp.size()-1);
+			List<UUID> tmp = new ArrayList<UUID>();
+			for(int j=0; j<Math.ceil(Options.INITIAL_VIEW_PERC * Options.VIEWS_SIZE); ++j) {
+				if(nodes_uuid_copy.get((start+j) % nodeCount).equals(currentNode)) {
+					Collections.swap(nodes_uuid_copy, 
+									 (start+j) % nodeCount, 
+									 (int) ((start+Math.ceil(Options.INITIAL_VIEW_PERC * Options.VIEWS_SIZE))%nodeCount));
+				}
+				
+				tmp.add(nodes_uuid_copy.get((start+j) % nodeCount));
+				
+				if ((start+j) % nodeCount == 0)
+					Collections.shuffle(nodes_uuid_copy);
 			}
+
+			start+=Math.ceil(Options.INITIAL_VIEW_PERC * Options.VIEWS_SIZE);
 
 			// Create node with random connections (of size VIEWS_SIZE) and add it to the context
 			Node n = new Node(currentNode, tmp);  // copy is done on Node's side
@@ -87,14 +97,6 @@ public class NodeBuilder implements ContextBuilder<Object> {
 			public void stopped() {
 				context.getObjects(NodeStat.class).forEach(ns -> ((NodeStat)ns).writeAll());
 				NodeStat.writeDead(context);
-				
-				/*
-				try {
-					oracle.getStat();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}*/
 			}
 
 			@Override

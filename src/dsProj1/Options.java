@@ -34,7 +34,7 @@ public class Options {
 	static double EVENTS_VAR_RATE;
 	
 	static double DROPPED_RATE;
-	static double DEATH_RATE_PER_SECOND;
+	static double DEATH_RATE_PER_INTERVAL;
 	static double EXPECTED_STABLE_TIME;
 
 	static double K;
@@ -50,6 +50,8 @@ public class Options {
 	static String OUTPUT_FOLDER;
 	
 	static String RETRIEVE_METHOD;
+	
+	static double STOP_TIME;
 	
 	static void load() {
 		Parameters  params = RunEnvironment.getInstance().getParameters();
@@ -88,7 +90,6 @@ public class Options {
 			OUTPUT_FOLDER.substring(0, OUTPUT_FOLDER.length()-1);
 		OUTPUT_FOLDER = OUTPUT_FOLDER + new repast.simphony.batch.ssh.DefaultOutputPatternCreator("", true).getFileSinkOutputPattern().getPath();
 		OUTPUT_FOLDER = OUTPUT_FOLDER.endsWith(java.io.File.separator)? OUTPUT_FOLDER : OUTPUT_FOLDER + java.io.File.separator;
-		System.out.println(OUTPUT_FOLDER);
 		
 		SUBS_OPTIMIZATION = params.getBoolean("SUBS_OPTIMIZATION");
 		
@@ -96,7 +97,9 @@ public class Options {
 			double STAY_ALIVE           = 1. - params.getDouble("DEATH_RATE");
 			double EXPECTED_STABLE_TIME = params.getDouble("EXPECTED_STABLE_TIME") - 1.;
 			
-			DEATH_RATE_PER_SECOND = 1. - Math.pow(STAY_ALIVE, 1./EXPECTED_STABLE_TIME);
+			DEATH_RATE_PER_INTERVAL = 1. - Math.pow(STAY_ALIVE, 1./(EXPECTED_STABLE_TIME/GOSSIP_INTERVAL));
 		}
+		
+		STOP_TIME = params.getDouble("STOP_TIME");
 	}
 }

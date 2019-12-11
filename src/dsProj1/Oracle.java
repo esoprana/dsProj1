@@ -121,26 +121,27 @@ public class Oracle {
 	}
 	
 	private void schedule() {
-		Context c = ContextUtils.getContext(this);
-		c.getObjects(NodeStat.class).forEach(ns -> ((NodeStat)ns).writeAll());
+		if (((int)(this.nData+Options.EVENTS_RATE))/500 > this.nData/500) { // Every 500 events created write .csv
+			System.out.println("write" + this.nData);
+			Context c = ContextUtils.getContext(this);
+			c.getObjects(NodeStat.class).forEach(ns -> ((NodeStat)ns).writeAll());			
+		}
 		
 		// Update time to new schedule time
 		this.lastScheduling+=Options.GOSSIP_INTERVAL;
-		
-		System.out.println("@" + this.currentSeconds);
 
 		// Get all nodes
 		Context ctx = ContextUtils.getContext(this);
 		List<Node> nodes = new ArrayList<Node>(Options.NODE_COUNT);
-		for (Object o : ctx.getObjects(Node.class)) {
-			nodes.add((Node)o);
+		for (Object o : ctx.getObjects(NodeStat.class)) {
+			NodeStat ns = (NodeStat) o;
+			if (ns.getNode().alive) {
+				if ( RandomHelper.nextDoubleFromTo(0, 1) < Options.DEATH_RATE_PER_INTERVAL )
+					ns.die(this.currentSeconds);
+				else
+					nodes.add(ns.getNode());
+			}
 		}
-
-		List<Node> aliveNodes = nodes.stream().filter(n -> n.alive).collect(Collectors.toCollection(ArrayList<Node>::new));
-		
-		aliveNodes.stream()
-				  .filter( n -> RandomHelper.nextDoubleFromTo(0, 1) < Options.DEATH_RATE_PER_SECOND)
-				  .forEach( n -> n.alive = false);
 		
 		// Create new events
 		cern.jet.random.Uniform u = RandomHelper.createUniform(0, Options.GOSSIP_INTERVAL);
@@ -161,7 +162,7 @@ public class Oracle {
 	}
 	
 	@ScheduledMethod(start = 1, interval = 1)
-	public void step() throws Exception {	
+	public void step() throws Exception {
 		@Nullable Timestamped<Message<?>> msg = messages.pollFirst();
 		
 		// If nothing is scheduled something bad happened (there should be at least some periodic event)
@@ -208,6 +209,10 @@ public class Oracle {
 		if (messages.isEmpty() || this.lastScheduling + Options.GOSSIP_INTERVAL <= messages.first().timestamp) {
 			this.schedule();
 		}
+		
+		if (Options.STOP_TIME != 0 && this.currentSeconds >= Options.STOP_TIME) {
+			RunEnvironment.getInstance().endRun();
+		}
 	}
 	
 	public void updateView(Timestamped<Message<?>> msg, boolean toBeReceived) {
@@ -242,12 +247,12 @@ public class Oracle {
 			nodes.put(n.id, n);
 		});
 		
-		source.getNode()
-			  .view
-	 	      .stream()
-	 	      .forEach( (Frequency<UUID> v) -> {
-		 	    	 networkView.addEdge(source.getNode(), nodes.get(v.data), v.frequency + 1.); // Show frequency using width
-	 	      });
+		destination.getNode()
+			  	   .view
+	 	           .stream()
+	 	           .forEach( (Frequency<UUID> v) -> {
+	 	        	   networkView.addEdge(destination.getNode(), nodes.get(v.data), v.frequency + 1.); // Show frequency using width
+	 	           });
 		
 		// - Message network
 		networkMessage.addEdge(new MessageEdge(source.getNode(), destination.getNode(), msg.message, toBeReceived?1:0));

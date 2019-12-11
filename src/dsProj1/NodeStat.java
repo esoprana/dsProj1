@@ -7,6 +7,7 @@ import dsProj1.msg.Message;
 import dsProj1.msg.data.Event;
 import dsProj1.msg.data.ExternalData;
 import dsProj1.msg.data.Gossip;
+import dsProj1.msg.data.RetrieveMessage;
 import dsProj1.msg.data.RoundStart;
 import repast.simphony.context.Context;
 import repast.simphony.util.ContextUtils;
@@ -144,12 +145,12 @@ public class NodeStat {
 	}
 	
 	public void send(@NonNull Message msg) {
-		if (msg.data instanceof ToRetrieveEv) {
+		if (msg.data instanceof RetrieveMessage) {
 			long round = this.getCurrentRound();
 			double timestamp = this.getCurrentTimestamp();
 
-			ToRetrieveEv tev = (ToRetrieveEv) msg.data; 
-			this.retrieveTries.add(new EventIdStat(tev.eventId, timestamp, round));
+			RetrieveMessage rm = (RetrieveMessage) msg.data; 
+			this.retrieveTries.add(new EventIdStat(rm.eventIdRequested, timestamp, round));
 		}
 			
 		this.getOracle().send(msg);
@@ -181,7 +182,7 @@ public class NodeStat {
 		
 		java.io.File file = new java.io.File(path);
 		boolean exists = file.exists();
-		java.io.FileWriter writer = new java.io.FileWriter(new java.io.File(path), true);
+		java.io.FileWriter writer = new java.io.FileWriter(file, true);
 
 		if (!exists)
 			writer.write("id, timestamp, round\n");
@@ -206,7 +207,7 @@ public class NodeStat {
 		
 		java.io.File file = new java.io.File(path);
 		boolean exists = file.exists();
-		java.io.FileWriter writer = new java.io.FileWriter(new java.io.File(path), true);
+		java.io.FileWriter writer = new java.io.FileWriter(file, true);
 
 		if (!exists)
 			writer.write("source, id, timestamp, round\n");
@@ -225,6 +226,7 @@ public class NodeStat {
 	public void writeEventReceived() {
 		try {
 			writeStatArray(this.getId().toString(), this.eventReceived, "eventReceived");
+			this.eventReceived.clear();
 		} catch (IOException e) {
 			System.err.println("Failed to write eventReceived for " + this.getId().toString());
 			e.printStackTrace();
@@ -234,6 +236,7 @@ public class NodeStat {
 	public void writeEventHandled() {
 		try {
 			writeStatArray(this.getId().toString(), this.eventHandled, "eventHandled");
+			this.eventHandled.clear();
 		} catch (IOException e) {
 			System.err.println("Failed to write eventHandled for " + this.getId().toString());
 			e.printStackTrace();
@@ -244,6 +247,7 @@ public class NodeStat {
 	public void writeCreatedEvent() {
 		try {
 			writeStatArray(this.getId().toString(), this.createdEvent, "createEvent");
+			this.createdEvent.clear();
 		} catch (IOException e) {
 			System.err.println("Failed to write createEvent for " + this.getId().toString());
 			e.printStackTrace();
@@ -253,6 +257,7 @@ public class NodeStat {
 	public void writeRetrieveFail() {
 		try {
 			writeEventIdArray(this.getId().toString(), this.retrieveFail, "retrieveFail");
+			this.retrieveFail.clear();
 		} catch (IOException e) {
 			System.err.println("Failed to write retrieveFail for " + this.getId().toString());
 			e.printStackTrace();
@@ -262,6 +267,7 @@ public class NodeStat {
 	public void writeRetrieveTries() {
 		try {
 			writeEventIdArray(this.getId().toString(), this.retrieveTries, "retrieveTries");
+			this.retrieveTries.clear();
 		} catch (IOException e) {
 			System.err.println("Failed to write retrieveTries for " + this.getId().toString());
 			e.printStackTrace();
@@ -271,6 +277,7 @@ public class NodeStat {
 	public void writeRetrieveFound() {
 		try {
 			writeEventIdArray(this.getId().toString(), this.retrieveFound, "retrieveFound");
+			this.retrieveFound.clear();
 		} catch (IOException e) {
 			System.err.println("Failed to write retrieveFound for " + this.getId().toString());
 			e.printStackTrace();
