@@ -17,6 +17,13 @@
 		isReadOnly="false"
 		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
 	<parameter
+		name="STOP_TIME"
+		displayName="00 - When to stop automatically (0 for never)"
+		type="double"
+		defaultValue="0"
+		isReadOnly="false"
+		converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+	<parameter
 		name="NODE_COUNT"
 		displayName="000 - Number of nodes (NODE_COUNT)"
 		type="int"
@@ -229,7 +236,7 @@
 		name="fake2"
 		displayName="2**********************************************"
 		type="java.lang.String"
-		defaultValue="************ REPAST OPTIONS ************"
+		defaultValue="************* NODE OPTIONS *************"
 		isReadOnly="true"
 		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
 	
